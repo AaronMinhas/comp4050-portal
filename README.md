@@ -24,9 +24,15 @@ It also acts as the primary reference point for other Dynamic Fit subteams integ
 
 ## Development Status
 
-FitPortal is currently in **Sprint 0**.
+FitPortal is currently in **Sprint 1**.
 
-The team is establishing the project structure, development workflow, technology stack and integration standards before feature development begins.
+Sprint 1 is focused on delivering an integrated minimum viable product (MVP) that demonstrates the end-to-end Dynamic Fit workflow.
+
+The intended MVP flow is:
+
+`FitPortal → FitSolver → FitPortal → FitVisualizer`
+
+Current Sprint 1 work includes establishing the Python backend and API, integrating Supabase, developing the minimum Portal interface, and completing integration with FitSolver and FitVisualizer.
 
 ## Project Management
 
