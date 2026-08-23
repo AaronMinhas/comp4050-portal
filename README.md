@@ -53,14 +53,44 @@ Development follows a branch and pull-request workflow:
 
 Direct changes to `main` are restricted.
 
-## Documentation
+## Local Backend Setup
 
-Project and integration documentation will be added as requirements and interfaces are agreed upon by the Dynamic Fit teams.
+The FitPortal backend is a FastAPI application located in `backend/`.
 
-This will include documentation such as:
+### Requirements
 
-- API specifications
-- Integration standards
-- Data formats
-- Development setup instructions
-- Docker usage and stable release instructions
+- Python 3.11 or newer (tested on 3.14)
+
+### Setup
+
+Create and activate a virtual environment, then install dependencies:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+On Windows, activate with `.venv\Scripts\activate` instead.
+
+### Running the API
+
+From `backend/` with the virtual environment activated:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The API is then available at `http://127.0.0.1:8000`:
+
+- `GET /health` — service status check
+- `/docs` — interactive API documentation
+
+### Running Tests
+
+From `backend/` with the virtual environment activated:
+
+```bash
+pytest
+```
