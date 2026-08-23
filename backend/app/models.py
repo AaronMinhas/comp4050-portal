@@ -37,6 +37,8 @@ class Item(PortalModel):
     box_group: str | None = Field(default=None, alias="BoxGroup", min_length=1)
 
 
+# TODO(#30): Persist reusable BoxType data in Supabase independently from
+# orders. Box types are reference data shared across orders, not order content.
 class BoxType(PortalModel):
     """Reusable box type reference data, independent of any single order.
 
@@ -59,3 +61,15 @@ class Order(PortalModel):
     """An order containing items to be packed."""
 
     items: list[Item] = Field(alias="Items", min_length=1)
+
+
+class StoredOrder(Order):
+    """An order that FitPortal has accepted and assigned a reference to.
+
+    The order ID is assigned by the Portal, so it is never supplied by the
+    caller and only appears on orders that already exist. `OrderId` is the
+    public `ORD-###` representation of the order's internal numeric database
+    ID, so no separate reference column is needed.
+    """
+
+    order_id: str = Field(alias="OrderId")
