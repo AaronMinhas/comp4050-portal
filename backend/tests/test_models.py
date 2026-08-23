@@ -202,6 +202,20 @@ class TestOrder:
         with pytest.raises(ValidationError):
             Order(Items=[{**VALID_ITEM, "Weight": 0}])
 
+    def test_order_serialises_using_aliases(self):
+        order = Order(Items=SAMPLE_ITEMS)
+
+        payload = order.model_dump(by_alias=True, exclude_none=True)
+
+        assert payload["Items"] == SAMPLE_ITEMS
+
+    def test_order_round_trips_through_aliases(self):
+        order = Order(Items=SAMPLE_ITEMS)
+
+        payload = order.model_dump(by_alias=True, exclude_none=True)
+
+        assert Order(**payload) == order
+
 
 class TestValidationBehaviour:
     """Covers the shared PortalModel configuration rather than any one contract."""

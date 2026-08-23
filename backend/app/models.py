@@ -7,9 +7,9 @@ snake_case Python attributes by alias.
 millimetres, and `BoxType` dimensions are internal measurements. All weights are
 in kilograms.
 
-`Order` is provisional. Ticket #15 covers the FastAPI application structure and
-validation infrastructure only; the Portal domain contract is defined in ticket
-#17.
+Items are supplied per optimisation request, so an `Order` carries its own
+items. Box types are reusable reference data and are therefore kept independent
+of orders.
 """
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -38,7 +38,7 @@ class Item(PortalModel):
 
 
 class BoxType(PortalModel):
-    """Box type reference data.
+    """Reusable box type reference data, independent of any single order.
 
     Omitted optional fields carry meaning: no `max_weight` means no weight
     limit, no `box_weight` means empty-box weight is not considered, and no
@@ -56,11 +56,6 @@ class BoxType(PortalModel):
 
 
 class Order(PortalModel):
-    """ TEMP . A non-empty list of items.
-
-    Order contract currently empty. Will be defined in ticket
-    #17. Order ID/reference assignment will be defined in ticket #18. Nothing
-    should depend on this model until then.
-    """
+    """An order containing items to be packed."""
 
     items: list[Item] = Field(alias="Items", min_length=1)
