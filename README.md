@@ -1,83 +1,232 @@
 # FitPortal
 
-FitPortal is the customer-facing component of the Dynamic Fit project. It provides the interface through which users interact with the system and coordinates with the other Dynamic Fit components to support the overall packing optimisation workflow.
+FitPortal is the customer-facing component of **Dynamic Fit**, a system for creating packing orders, optimising how items are packed into boxes, and visualising the resulting packing solution.
+
+This repository contains the standalone FitPortal frontend and backend.
+
+The complete integrated Dynamic Fit application is maintained in the **Dynamic Fit monorepo**:
+
+**https://github.com/Wasif-ZA/dynamic-fit**
 
 ## Dynamic Fit
 
-Dynamic Fit is divided into three subteams, each responsible for a major component of the system:
+Dynamic Fit consists of three main components:
 
-- **FitPortal** — Provides the customer-facing application and coordinates the overall user workflow.
-- **FitSolver** — Processes packing optimisation requests and returns optimised packing solutions.
-- **FitVisualizer** — Provides a visual representation of the optimised packing solution.
+- **FitPortal** — Customer-facing interface, order management and API.
+- **FitSolver** — Calculates optimised packing solutions.
+- **FitVisualiser** — Displays packing solutions in 3D.
 
-The intended high-level interaction between these components is:
+The current application flow is:
 
-`FitPortal → FitSolver → FitPortal → FitVisualizer`
+```text
+FitPortal Frontend
+        ↓
+FitPortal API
+        ↓
+FitSolver
+        ↓
+FitPortal API
+        ↓
+FitVisualiser
+```
 
-Integration standards and shared interfaces between these components will be documented as they are defined.
+FitPortal's backend integrates with FitSolver directly as a Python package. A separate Solver server is not required.
 
-## Repository Purpose
+The complete Portal, Solver and Visualiser integration is available through the Dynamic Fit monorepo:
 
-This repository contains the source code and documentation for FitPortal.
+**https://github.com/Wasif-ZA/dynamic-fit**
 
-It also acts as the primary reference point for other Dynamic Fit subteams integrating with FitPortal. Shared integration documentation, API specifications and stable releases will be made available through this repository as development progresses.
+## Repository Structure
 
-## Development Status
+```text
+comp4050-portal/
+├── backend/
+│   ├── app/
+│   ├── tests/
+│   ├── requirements.txt
+│   └── requirements-standalone.txt
+├── frontend/
+└── README.md
+```
 
-FitPortal is currently in **Sprint 1**.
+### Backend
 
-Sprint 1 is focused on delivering an integrated minimum viable product (MVP) that demonstrates the end-to-end Dynamic Fit workflow.
+The backend is a Python FastAPI application responsible for:
 
-The intended MVP flow is:
+- creating and retrieving orders
+- validating Portal data
+- converting Portal orders into the FitSolver input format
+- executing packing requests through FitSolver
+- storing packing solutions, and
+- exposing packing results for the frontend and FitVisualiser.
 
-`FitPortal → FitSolver → FitPortal → FitVisualizer`
+### Frontend
 
-Current Sprint 1 work includes establishing the Python backend and API, integrating Supabase, developing the minimum Portal interface, and completing integration with FitSolver and FitVisualizer.
+The frontend provides the FitPortal user interface for:
 
-## Project Management
+- creating orders
+- viewing existing orders
+- viewing order items and packing status
+- submitting orders for packing, and
+- displaying packing results.
 
-Development work is managed through the FitPortal GitHub Project board using a Scrum-based workflow.
+## Standalone Development
 
-Issues represent items in the Product Backlog and are assigned to Sprints through the project board.
+This repository can be used independently for FitPortal development and testing.
 
-## Contribution Workflow
+Because FitSolver exists in the Dynamic Fit monorepo, the standalone Portal environment installs FitSolver as a Python dependency from the monorepo.
 
-Development follows a branch and pull-request workflow:
+### Backend Setup
 
-1. Select or create a GitHub Issue for the work.
-2. Create a branch for the issue.
-3. Make and commit changes on the branch.
-4. Open a pull request targeting `main`.
-5. Have the pull request reviewed and approved by another team member.
-6. Squash merge the approved pull request into `main`.
+From the repository root:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r backend/requirements-standalone.txt
+```
+
+Start the FastAPI backend:
+
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
+
+The API will be available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Interactive API documentation is available at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Frontend Setup
+
+Open another terminal from the repository root:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend will be available at:
+
+```text
+http://127.0.0.1:5174
+```
+
+## FitSolver Integration
+
+FitSolver is installed by `backend/requirements-standalone.txt`.
+
+The standalone requirements file installs the standard Portal dependencies and then installs the FitSolver Python package from:
+
+**https://github.com/Wasif-ZA/dynamic-fit/tree/main/packages/solver**
+
+This allows the following workflow to be tested directly from this repository:
+
+```text
+FitPortal Frontend
+        ↓
+FitPortal API
+        ↓
+FitSolver
+        ↓
+Packing Result
+        ↓
+FitPortal Frontend
+```
+
+FitSolver runs in-process with the Portal backend. There is no separate Solver API or server to start.
+
+## FitVisualiser Integration
+
+FitVisualiser is maintained as part of the Dynamic Fit monorepo:
+
+**https://github.com/Wasif-ZA/dynamic-fit/tree/main/apps/visualiser**
+
+FitVisualiser is not included in this standalone repository.
+
+The Portal frontend expects FitVisualiser to be running at:
+
+```text
+http://localhost:5173
+```
+
+Without FitVisualiser running, order creation, packing and packing summaries will continue to work, but the embedded 3D visualisation will not be available.
+
+To run and test the complete Portal → Solver → Visualiser workflow, use the Dynamic Fit monorepo:
+
+**https://github.com/Wasif-ZA/dynamic-fit**
+
+## API
+
+The current Portal API provides the following routes:
+
+| Method | Route | Purpose |
+|---|---|---|
+| `POST` | `/orders` | Create an order |
+| `GET` | `/orders` | List orders |
+| `GET` | `/orders/{id}` | Retrieve an order |
+| `POST` | `/orders/{id}/solve` | Pack an existing order using FitSolver |
+| `GET` | `/orders/{id}/solution` | Retrieve the packing solution |
+| `GET` | `/orders/{id}/solution/summary` | Retrieve the packing summary |
+| `GET` | `/health` | API health check |
+| `GET` | `/docs` | Interactive OpenAPI documentation |
+
+Order IDs are generated by the Portal API using the `ORD-###` format.
+
+## Testing
+
+Install the standalone dependencies and activate the virtual environment before running the backend test suite:
+
+```bash
+pytest backend/tests
+```
+
+The tests cover:
+
+- API health
+- Portal data models and validation
+- order creation and retrieval
+- Portal-to-Solver data conversion
+- Solver integration
+- packing API routes.
+
+## Development Workflow
+
+Development work is managed using GitHub Issues and the FitPortal GitHub Project board.
+
+The team follows a branch and pull-request workflow:
+
+1. Select an issue from the current sprint.
+2. Assign the issue before beginning development.
+3. Create a branch for the issue.
+4. Implement and test the change.
+5. Open a pull request targeting `main`.
+6. Link the pull request to the relevant issue.
+7. Have another team member review and approve the pull request.
+8. Squash merge the approved pull request into `main`.
 
 Direct changes to `main` are restricted.
 
-## How to run it
+## Monorepo Integration
 
-Full setup (venv, solver install, three terminals) is in the [monorepo README](../../README.md).
-Do that from the **repo root**, not from this folder. Summary:
+FitPortal is also maintained as the Portal component of the Dynamic Fit monorepo:
 
-| What | URL |
-|---|---|
-| Portal API | http://127.0.0.1:8000 |
-| Portal website | http://127.0.0.1:5174 |
-| 3D visualiser | http://localhost:5173 |
+**https://github.com/Wasif-ZA/dynamic-fit/tree/main/apps/portal**
 
-The website is on 5174 so the visualiser can keep 5173. Use `localhost` for the
-visualiser, not `127.0.0.1`, or the 3D panel will be blank.
+Within the monorepo, FitSolver is available locally under `packages/solver`. The monorepo therefore installs the local Solver package rather than using the standalone Portal dependency.
 
-The API packs by importing the solver in-process. You do not start a solver server.
+`backend/requirements-standalone.txt` exists specifically so this repository can independently run and test Portal-to-Solver integration.
 
-API routes: `POST /orders` (assigns `ORD-###`), `GET /orders`, `GET /orders/{id}`,
-`POST /orders/{id}/solve`, `GET /orders/{id}/solution`, `GET /orders/{id}/solution/summary`,
-`GET /health`, `/docs`.
+For development and testing of the complete Dynamic Fit system, use the monorepo:
 
-Sign in with any email and password. Create an order, then **Pack this order**.
-**Pack again** re-packs the same ID.
-
-Portal-only tests, from the repo root with the venv on:
-
-```bash
-pytest apps/portal/backend/tests
-```
+**https://github.com/Wasif-ZA/dynamic-fit**
