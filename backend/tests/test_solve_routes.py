@@ -20,7 +20,7 @@ def clear_store():
     store.reset()
 
 
-def an_item(code="MUG", **overrides) -> dict:
+def an_item(code="ITM-001", **overrides) -> dict:
     payload = {
         "ItemCode": code,
         "ItemReference": f"SKU-{code}",
@@ -80,12 +80,12 @@ def test_summary_reports_kilograms_for_the_order_page():
 
 
 def test_summary_lists_rejected_items_for_the_packer():
-    order_id = create_order([an_item("PALLET", Width=1200, Length=800, Depth=1000, Weight=450.0)])
+    order_id = create_order([an_item("ITM-999", Width=1200, Length=800, Depth=1000, Weight=32.0)])
     client.post(f"/orders/{order_id}/solve")
 
     summary = client.get(f"/orders/{order_id}/solution/summary").json()
     assert summary["BoxCount"] == 0
-    assert summary["Rejected"][0]["ItemCode"] == "PALLET"
+    assert summary["Rejected"][0]["ItemCode"] == "ITM-999"
     assert summary["Rejected"][0]["Reason"] == "NO_FITTING_CARTON"
     assert summary["Rejected"][0]["Detail"]
 
@@ -138,13 +138,13 @@ def test_solving_the_same_order_twice_does_not_create_another():
 
 
 def test_quantity_three_yields_three_placements():
-    order_id = create_order([an_item("MUG", Quantity=3)])
+    order_id = create_order([an_item("ITM-001", Quantity=3)])
     document = client.post(f"/orders/{order_id}/solve").json()
 
     placed = [p["item_ref"] for c in document["cartons"] for p in c["placements"]]
-    assert placed == ["MUG", "MUG", "MUG"]
+    assert placed == ["ITM-001", "ITM-001", "ITM-001"]
     assert client.get(f"/orders/{order_id}").json()["Items"][0]["Quantity"] == 3
-    assert client.get(f"/orders/{order_id}").json()["Items"][0]["ItemCode"] == "MUG"
+    assert client.get(f"/orders/{order_id}").json()["Items"][0]["ItemCode"] == "ITM-001"
 
 
 def test_health_still_works():

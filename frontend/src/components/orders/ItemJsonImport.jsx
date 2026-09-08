@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import Button from '../common/Button.jsx';
 import { parseItemsJson } from '../../lib/itemValidation.js';
+import ImportedItemsReviewModal from './ImportedItemsReviewModal.jsx';
 
 const PLACEHOLDER = `[
   {
@@ -20,6 +21,7 @@ export default function ItemJsonImport({ onImport }) {
   const [errors, setErrors] = useState([]);
   const [success, setSuccess] = useState('');
   const [fileName, setFileName] = useState('');
+  const [previewItems, setPreviewItems] = useState(null);
   const fileInputRef = useRef(null);
 
   const runImport = (jsonText) => {
@@ -30,8 +32,7 @@ export default function ItemJsonImport({ onImport }) {
       return;
     }
     setErrors([]);
-    onImport(items);
-    setSuccess(`Imported ${items.length} item${items.length === 1 ? '' : 's'}.`);
+    setPreviewItems(items);
   };
 
   const handlePasteImport = () => {
@@ -51,7 +52,6 @@ export default function ItemJsonImport({ onImport }) {
 
     try {
       const contents = await file.text();
-      setText(contents);
       runImport(contents);
     } catch (err) {
       setErrors([`Could not read the file: ${err.message}`]);
@@ -61,10 +61,41 @@ export default function ItemJsonImport({ onImport }) {
     }
   };
 
+  const handleConfirm = (items) => {
+    onImport(items);
+    setPreviewItems(null);
+    setSuccess(`Added ${items.length} item${items.length === 1 ? '' : 's'} to the order.`);
+  };
+
   return (
     <div className="space-y-4">
-      <div>
+      <div className="mx-auto max-w-2xl text-center">
         <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-400">
+          Upload JSON file
+        </span>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-ink-100 bg-white px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50">
+            Choose .json file
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </label>
+          {fileName && <span className="text-xs text-ink-300">{fileName}</span>}
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-2xl items-center gap-3 text-xs font-semibold uppercase tracking-wide text-ink-300">
+        <span className="h-px flex-1 bg-ink-100" />
+        Or
+        <span className="h-px flex-1 bg-ink-100" />
+      </div>
+
+      <div className="mx-auto max-w-2xl">
+        <span className="mb-1 block text-center text-xs font-semibold uppercase tracking-wide text-ink-400">
           Paste item JSON
         </span>
         <textarea
@@ -79,22 +110,10 @@ export default function ItemJsonImport({ onImport }) {
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="text-center">
         <Button type="button" onClick={handlePasteImport} disabled={!text.trim()}>
-          Import pasted JSON
+          Review pasted JSON
         </Button>
-
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-ink-100 bg-white px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50">
-          Upload .json file
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,application/json"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-        </label>
-        {fileName && <span className="text-xs text-ink-300">{fileName}</span>}
       </div>
 
       {errors.length > 0 && (
@@ -114,6 +133,14 @@ export default function ItemJsonImport({ onImport }) {
         <p className="rounded-sm border border-green-200 bg-green-50 p-3 text-sm text-green-700">
           {success}
         </p>
+      )}
+
+      {previewItems && (
+        <ImportedItemsReviewModal
+          items={previewItems}
+          onCancel={() => setPreviewItems(null)}
+          onConfirm={handleConfirm}
+        />
       )}
     </div>
   );

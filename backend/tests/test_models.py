@@ -107,6 +107,24 @@ class TestItem:
         with pytest.raises(ValidationError):
             Item(**{**VALID_ITEM, "Weght": 2.8})
 
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            ("1", "ITM-001"),
+            ("01", "ITM-001"),
+            ("ITM-1", "ITM-001"),
+            ("ITM-01", "ITM-001"),
+            ("ITM-1234", "ITM-1234"),
+        ],
+    )
+    def test_item_code_shorthand_is_canonicalised(self, value, expected):
+        assert Item(**{**VALID_ITEM, "ItemCode": value}).item_code == expected
+
+    @pytest.mark.parametrize("value", ["MUG", "ABC", "ITEM-001", "ITM-ABC", "001-A"])
+    def test_invalid_item_code_format_is_rejected(self, value):
+        with pytest.raises(ValidationError, match="ItemCode must be"):
+            Item(**{**VALID_ITEM, "ItemCode": value})
+
     @pytest.mark.parametrize("dimension", ["Width", "Length", "Depth"])
     @pytest.mark.parametrize("value", [0, -1])
     def test_non_positive_dimension_is_rejected(self, dimension, value):
@@ -117,6 +135,13 @@ class TestItem:
     def test_non_positive_weight_is_rejected(self, value):
         with pytest.raises(ValidationError):
             Item(**{**VALID_ITEM, "Weight": value})
+
+    def test_weight_at_maximum_is_accepted(self):
+        assert Item(**{**VALID_ITEM, "Weight": 32}).weight == 32
+
+    def test_weight_above_maximum_is_rejected(self):
+        with pytest.raises(ValidationError):
+            Item(**{**VALID_ITEM, "Weight": 32.01})
 
     @pytest.mark.parametrize(
         "field", ["ItemCode", "ItemReference"]

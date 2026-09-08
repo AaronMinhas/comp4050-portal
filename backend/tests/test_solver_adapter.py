@@ -9,7 +9,7 @@ from app.solver_adapter import HAZARDOUS_TAG, box_to_contract, item_to_contract,
 
 def an_item(**overrides) -> Item:
     payload = {
-        "ItemCode": "MUG",
+        "ItemCode": "ITM-001",
         "ItemReference": "SKU-MUG",
         "Width": 100,
         "Length": 110,
@@ -23,7 +23,7 @@ def an_item(**overrides) -> Item:
 def test_item_code_becomes_item_ref_and_reference_becomes_label():
     mapped = item_to_contract(an_item())
 
-    assert mapped["item_ref"] == "MUG"
+    assert mapped["item_ref"] == "ITM-001"
     assert mapped["label"] == "SKU-MUG"
 
 
@@ -42,7 +42,7 @@ def test_quantity_is_passed_through_not_expanded():
     mapped = item_to_contract(an_item(Quantity=3))
 
     assert mapped["quantity"] == 3
-    assert mapped["item_ref"] == "MUG"
+    assert mapped["item_ref"] == "ITM-001"
 
 
 def test_empty_box_group_becomes_no_dg_class():

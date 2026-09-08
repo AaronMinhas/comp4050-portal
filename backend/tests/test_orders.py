@@ -112,6 +112,36 @@ class TestCreateOrder:
 
         assert response.status_code == 422
 
+    def test_item_at_maximum_weight_is_accepted(self):
+        response = client.post(
+            "/orders", json={"Items": [{**VALID_ITEM, "Weight": 32}]}
+        )
+
+        assert response.status_code == 201
+
+    def test_item_above_maximum_weight_is_rejected(self):
+        response = client.post(
+            "/orders", json={"Items": [{**VALID_ITEM, "Weight": 32.01}]}
+        )
+
+        assert response.status_code == 422
+
+    def test_item_code_shorthand_is_stored_canonically(self):
+        response = client.post(
+            "/orders", json={"Items": [{**VALID_ITEM, "ItemCode": "ITM-12"}]}
+        )
+
+        assert response.status_code == 201
+        assert response.json()["Items"][0]["ItemCode"] == "ITM-012"
+
+    @pytest.mark.parametrize("value", ["MUG", "ABC", "ITM-ABC", "ITEM-001"])
+    def test_invalid_item_code_is_rejected(self, value):
+        response = client.post(
+            "/orders", json={"Items": [{**VALID_ITEM, "ItemCode": value}]}
+        )
+
+        assert response.status_code == 422
+
     @pytest.mark.parametrize("dimension", ["Width", "Length", "Depth"])
     @pytest.mark.parametrize("value", [0, -5])
     def test_invalid_dimensions_are_rejected(self, dimension, value):

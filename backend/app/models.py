@@ -13,12 +13,15 @@ of orders.
 """
 
 from datetime import datetime, timezone
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Draft until packed, Packed once a solution exists.
 OrderStatus = Literal["Draft", "Packed"]
+
+ITEM_CODE_PATTERN = re.compile(r"^(?:ITM-)?(\d+)$", re.IGNORECASE)
 
 
 class PortalModel(BaseModel):
@@ -34,15 +37,26 @@ class PortalModel(BaseModel):
 class Item(PortalModel):
     """An item to pack. Quantity defaults to 1; Hazardous defaults to false."""
 
-    item_code: str = Field(alias="ItemCode", min_length=1)
+    item_code: str = Field(alias="ItemCode", min_length=1, pattern=r"^ITM-\d{3,}$")
     item_reference: str = Field(alias="ItemReference", min_length=1)
     width: int = Field(alias="Width", gt=0)
     length: int = Field(alias="Length", gt=0)
     depth: int = Field(alias="Depth", gt=0)
-    weight: float = Field(alias="Weight", gt=0)
+    weight: float = Field(alias="Weight", gt=0, le=32)
     box_group: str | None = Field(default=None, alias="BoxGroup", min_length=1)
     quantity: int = Field(default=1, alias="Quantity", ge=1)
     hazardous: bool = Field(default=False, alias="Hazardous")
+
+    @field_validator("item_code", mode="before")
+    @classmethod
+    def normalise_item_code(cls, value: object) -> object:
+        """Accept numeric shorthand but always retain a canonical item code."""
+        if not isinstance(value, str):
+            return value
+        match = ITEM_CODE_PATTERN.fullmatch(value.strip())
+        if not match:
+            raise ValueError("ItemCode must be a number or ITM- followed by a number")
+        return f"ITM-{match.group(1).zfill(3)}"
 
     @field_validator("box_group", mode="before")
     @classmethod

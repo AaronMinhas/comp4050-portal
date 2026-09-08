@@ -2,10 +2,26 @@ import React, { useState } from 'react';
 import Field, { inputClass } from '../common/Field.jsx';
 import Button from '../common/Button.jsx';
 import { emptyItemDraft } from '../../data/mockData.js';
-import { MAX_ITEM_WEIGHT_KG, weightExceedsLimit } from '../../lib/itemValidation.js';
+import {
+  ITEM_CODE_ERROR,
+  MAX_ITEM_WEIGHT_KG,
+  isValidItemCode,
+  normaliseItem,
+  normaliseItemCode,
+  validateItemFields,
+  weightExceedsLimit,
+} from '../../lib/itemValidation.js';
 
-export default function ItemEntryForm({ onAdd }) {
-  const [draft, setDraft] = useState(emptyItemDraft());
+export default function ItemEntryForm({
+  onAdd,
+  initialItem,
+  submitLabel = 'Add item to order',
+  onCancel,
+}) {
+  const [draft, setDraft] = useState(() => ({
+    ...emptyItemDraft(),
+    ...initialItem,
+  }));
   const [error, setError] = useState('');
 
   const update = (field) => (e) => {
@@ -15,46 +31,56 @@ export default function ItemEntryForm({ onAdd }) {
 
   const weightTooHigh = weightExceedsLimit(draft.Weight);
 
+  const handleItemCodeBlur = () => {
+    const hasInvalidCode = draft.ItemCode.trim() && !isValidItemCode(draft.ItemCode);
+    setDraft((current) => ({
+      ...current,
+      ItemCode: normaliseItemCode(current.ItemCode),
+    }));
+    if (hasInvalidCode) {
+      setError(ITEM_CODE_ERROR);
+    } else if (error === ITEM_CODE_ERROR) {
+      setError('');
+    }
+  };
+
   const handleAdd = (e) => {
     e.preventDefault();
-    const { ItemCode, ItemReference, Width, Length, Depth, Weight } = draft;
-    if (!ItemCode || !ItemReference || !Width || !Length || !Depth || !Weight) {
-      setError('Item code, reference, dimensions and weight are required.');
-      return;
-    }
-    if (weightExceedsLimit(Weight)) {
+    const candidate = { ...draft, ItemCode: normaliseItemCode(draft.ItemCode) };
+    const validationErrors = validateItemFields(candidate);
+    if (validationErrors.length > 0) {
+      if (weightExceedsLimit(candidate.Weight)) {
+        setError(
+          `Item weight of ${candidate.Weight} kg exceeds the maximum allowed item weight of ${MAX_ITEM_WEIGHT_KG} kg. Reduce the weight or split it into multiple items.`
+        );
+        return;
+      }
       setError(
-        `Item weight of ${Weight} kg exceeds the maximum allowed item weight of ${MAX_ITEM_WEIGHT_KG} kg. Reduce the weight or split it into multiple items.`
+        validationErrors.length === 1
+          ? validationErrors[0]
+          : 'Item code, reference, positive dimensions, weight and a valid quantity are required.'
       );
       return;
     }
-    onAdd({
-      ItemCode: draft.ItemCode,
-      ItemReference: draft.ItemReference,
-      Width: Number(draft.Width),
-      Length: Number(draft.Length),
-      Depth: Number(draft.Depth),
-      Weight: Number(draft.Weight),
-      Quantity: Number(draft.Quantity) || 1,
-      Hazardous: draft.Hazardous,
-      ...(draft.BoxGroup.trim() ? { BoxGroup: draft.BoxGroup.trim() } : {}),
-    });
+    onAdd(normaliseItem(candidate));
     setDraft(emptyItemDraft());
     setError('');
   };
 
   return (
     <form onSubmit={handleAdd} className="space-y-4">
+      <p className="text-xs text-ink-300">* Required</p>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Item code">
+        <Field label="Item code *" hint="Enter a number, e.g. 12 → ITM-012">
           <input
             className={inputClass('font-mono')}
-            placeholder="ITM-004"
+            placeholder="12"
             value={draft.ItemCode}
             onChange={update('ItemCode')}
+            onBlur={handleItemCodeBlur}
           />
         </Field>
-        <Field label="Item reference">
+        <Field label="Item reference *">
           <input
             className={inputClass()}
             placeholder="Widget C"
@@ -65,7 +91,7 @@ export default function ItemEntryForm({ onAdd }) {
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        <Field label="Width (mm)">
+        <Field label="Width (mm) *">
           <input
             type="number"
             min="0"
@@ -74,7 +100,7 @@ export default function ItemEntryForm({ onAdd }) {
             onChange={update('Width')}
           />
         </Field>
-        <Field label="Length (mm)">
+        <Field label="Length (mm) *">
           <input
             type="number"
             min="0"
@@ -83,7 +109,7 @@ export default function ItemEntryForm({ onAdd }) {
             onChange={update('Length')}
           />
         </Field>
-        <Field label="Depth (mm)">
+        <Field label="Depth (mm) *">
           <input
             type="number"
             min="0"
@@ -93,7 +119,7 @@ export default function ItemEntryForm({ onAdd }) {
           />
         </Field>
         <Field
-          label="Weight (kg)"
+          label="Weight (kg) *"
           hint={`Max ${MAX_ITEM_WEIGHT_KG} kg per item`}
         >
           <input
@@ -117,7 +143,7 @@ export default function ItemEntryForm({ onAdd }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Field
-          label="Box group"
+          label="Box group (optional)"
           hint="Optional - items in different groups are never packed in the same box"
         >
           <input
@@ -145,14 +171,21 @@ export default function ItemEntryForm({ onAdd }) {
           checked={draft.Hazardous}
           onChange={update('Hazardous')}
         />
-        Flag as hazardous / dangerous goods
+        Hazardous / dangerous goods
       </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <Button type="submit" className="w-full" disabled={weightTooHigh}>
-        Add item to order
-      </Button>
+      <div className="flex justify-end gap-2">
+        {onCancel && (
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+        <Button type="submit" className={onCancel ? '' : 'w-full'} disabled={weightTooHigh}>
+          {submitLabel}
+        </Button>
+      </div>
     </form>
   );
 }
