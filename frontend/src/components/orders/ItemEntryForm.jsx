@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Field, { inputClass } from '../common/Field.jsx';
 import Button from '../common/Button.jsx';
 import { emptyItemDraft } from '../../data/mockData.js';
+import { MAX_ITEM_WEIGHT_KG, weightExceedsLimit } from '../../lib/itemValidation.js';
 
 export default function ItemEntryForm({ onAdd }) {
   const [draft, setDraft] = useState(emptyItemDraft());
@@ -12,11 +13,19 @@ export default function ItemEntryForm({ onAdd }) {
     setDraft((d) => ({ ...d, [field]: value }));
   };
 
+  const weightTooHigh = weightExceedsLimit(draft.Weight);
+
   const handleAdd = (e) => {
     e.preventDefault();
     const { ItemCode, ItemReference, Width, Length, Depth, Weight } = draft;
     if (!ItemCode || !ItemReference || !Width || !Length || !Depth || !Weight) {
       setError('Item code, reference, dimensions and weight are required.');
+      return;
+    }
+    if (weightExceedsLimit(Weight)) {
+      setError(
+        `Item weight of ${Weight} kg exceeds the maximum allowed item weight of ${MAX_ITEM_WEIGHT_KG} kg. Reduce the weight or split it into multiple items.`
+      );
       return;
     }
     onAdd({
@@ -83,17 +92,28 @@ export default function ItemEntryForm({ onAdd }) {
             onChange={update('Depth')}
           />
         </Field>
-        <Field label="Weight (kg)">
+        <Field
+          label="Weight (kg)"
+          hint={`Max ${MAX_ITEM_WEIGHT_KG} kg per item`}
+        >
           <input
             type="number"
             min="0"
+            max={MAX_ITEM_WEIGHT_KG}
             step="0.01"
-            className={inputClass('font-mono')}
+            className={inputClass(`font-mono ${weightTooHigh ? 'border-red-400 text-red-600' : ''}`)}
             value={draft.Weight}
             onChange={update('Weight')}
+            aria-invalid={weightTooHigh}
           />
         </Field>
       </div>
+
+      {weightTooHigh && (
+        <p className="text-sm text-red-600">
+          This item exceeds the {MAX_ITEM_WEIGHT_KG} kg maximum weight limit.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field
@@ -130,7 +150,7 @@ export default function ItemEntryForm({ onAdd }) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <Button type="submit" className="w-full">
+      <Button type="submit" className="w-full" disabled={weightTooHigh}>
         Add item to order
       </Button>
     </form>

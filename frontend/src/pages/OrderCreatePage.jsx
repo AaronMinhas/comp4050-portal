@@ -4,8 +4,14 @@ import { useApp } from '../context/AppContext.jsx';
 import Field, { inputClass } from '../components/common/Field.jsx';
 import Button from '../components/common/Button.jsx';
 import ItemEntryForm from '../components/orders/ItemEntryForm.jsx';
+import ItemJsonImport from '../components/orders/ItemJsonImport.jsx';
 import ItemsTable from '../components/orders/ItemsTable.jsx';
 import { orderTotals } from '../lib/orders.js';
+
+const ENTRY_TABS = [
+  { id: 'manual', label: 'Manual entry' },
+  { id: 'json', label: 'Import JSON' },
+];
 
 export default function OrderCreatePage() {
   const { addOrder } = useApp();
@@ -14,10 +20,13 @@ export default function OrderCreatePage() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [entryTab, setEntryTab] = useState('manual');
 
   const totals = useMemo(() => orderTotals(items), [items]);
 
   const handleAddItem = (item) => setItems((prev) => [...prev, item]);
+  const handleImportItems = (importedItems) =>
+    setItems((prev) => [...prev, ...importedItems]);
   const handleRemoveItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
   const handleSubmit = async () => {
@@ -63,8 +72,29 @@ export default function OrderCreatePage() {
           <p className="mt-1 text-sm text-ink-400">
             Enter items to be packed. Dimensions in mm, weight in kg.
           </p>
+          <div className="mt-4 flex gap-1 rounded-sm border border-ink-100 bg-ink-50 p-1">
+            {ENTRY_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setEntryTab(tab.id)}
+                className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  entryTab === tab.id
+                    ? 'bg-white text-ink-700 shadow-sm'
+                    : 'text-ink-400 hover:text-ink-600'
+                }`}
+                aria-pressed={entryTab === tab.id}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
           <div className="cut-line my-4" />
-          <ItemEntryForm onAdd={handleAddItem} />
+          {entryTab === 'manual' ? (
+            <ItemEntryForm onAdd={handleAddItem} />
+          ) : (
+            <ItemJsonImport onImport={handleImportItems} />
+          )}
         </section>
       </div>
 
