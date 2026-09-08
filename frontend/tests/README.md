@@ -1,62 +1,42 @@
 # FitPortal Frontend Testing
 
-This folder contains the frontend test plan and manual test cases for the FitPortal MVP.
+This folder contains the frontend testing documentation for FitPortal.
 
-FitPortal is the customer-facing part of Dynamic Fit. The frontend communicates with the FitPortal API, which handles order data and invokes FitSolver. FitVisualiser is used to display the packing solution in 3D.
+The purpose of these tests is to verify the main user-facing workflows and identify frontend issues before changes are merged into the main branch.
 
-## Test Objectives
-
-The frontend test suite verifies that users can:
-
-- sign in and access protected pages
-- create and view orders
-- add and remove order items
-- see correct quantities, weights and hazard information
-- submit an order for packing
-- view packing results
-- continue using order and packing summaries when FitVisualiser is unavailable
-- use the interface on desktop and mobile screen sizes
-- receive useful validation and error messages
-- use the interface without unnecessary waiting or frozen UI
-
-## Test Environment
-
-For standalone development:
-
-```bash
-# Terminal 1 - backend
-source .venv/bin/activate
-cd backend
-uvicorn app.main:app --reload
-```
-
-Backend:
+## Test Files
 
 ```text
-http://127.0.0.1:8000
+frontend/tests/
+├── README.md
+├── manual-test-cases.md
+└── test-run-template.md
 ```
 
-In another terminal:
+### `README.md`
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Explains the frontend testing process and how test results should be recorded.
 
-Frontend:
+### `manual-test-cases.md`
 
-```text
-http://127.0.0.1:5174
-```
+Contains the detailed manual frontend test cases, including:
 
-FitVisualiser is normally expected at:
+- authentication
+- orders
+- item entry
+- validation
+- packing
+- FitVisualiser integration
+- API failure handling
+- responsive layout
+- navigation
+- production build
 
-```text
-http://localhost:5173
-```
+### `test-run-template.md`
 
-FitVisualiser is not required for order creation, packing, or packing summaries. If it is not running, only the embedded 3D visualisation should be unavailable.
+Used to record the result of a manual frontend test run.
+
+---
 
 ## Current Test Approach
 
@@ -89,78 +69,106 @@ For failed tests, record:
 - console error if present
 - related GitHub issue
 
-## Test Areas
+---
 
-The current frontend test plan covers:
+## Before Testing
 
-1. Authentication and protected routing
-2. Orders list and order details
-3. Order creation
-4. Item entry and validation
-5. Hazard handling
-6. Packing workflow
-7. FitVisualiser fallback behaviour
-8. API failure handling
-9. Responsive behaviour
-10. Accessibility and keyboard navigation
-11. Build and basic performance checks
+The Portal API and FitPortal frontend should be running.
 
-## API Routes Relevant to Frontend Testing
+### Start the backend
 
-The frontend workflow may use these Portal API routes:
+From the backend directory:
 
-```text
-POST /orders
-GET /orders
-GET /orders/{id}
-POST /orders/{id}/solve
-GET /orders/{id}/solution
-GET /orders/{id}/solution/summary
-GET /health
+```bash
+uvicorn app.main:app --reload
 ```
 
-The frontend is not responsible for testing the FitSolver packing algorithm itself. Backend tests cover solver integration. Frontend testing verifies that requests are triggered correctly and that success, loading and error states are displayed correctly.
+The backend should be available at:
 
-## Entry Criteria
+```text
+http://127.0.0.1:8000
+```
 
-Before running the full frontend test suite:
+The API documentation can be checked at:
 
-- dependencies are installed
-- frontend starts successfully
-- backend starts successfully for API-related cases
-- browser developer tools are available
-- test data can be created safely
+```text
+http://127.0.0.1:8000/docs
+```
 
-## Exit Criteria
+### Start the frontend
 
-The frontend test pass is considered complete when:
+From the frontend directory:
 
-- all High-priority test cases have been run
-- no unresolved High-priority failures remain
-- failed Medium-priority tests have a GitHub issue or documented reason
-- the production frontend build succeeds
+```bash
+npm install
+npm run dev
+```
 
-## Future Automated Testing
+The frontend should be available at:
 
-The project currently does not include a frontend test script or frontend test framework.
+```text
+http://localhost:5174
+```
 
-A later testing issue can add:
+---
 
-- Vitest
-- React Testing Library
-- `@testing-library/jest-dom`
-- jsdom
+## FitVisualiser
 
-Recommended first automated tests:
+FitVisualiser is a separate application expected at:
 
-1. Login validation
-2. Protected-route redirect
-3. Item-entry validation
-4. Add/remove item
-5. Create-order validation
-6. Orders rendering
-7. Order details rendering
-8. Packing success/error states
-9. API unavailable state
+```text
+http://localhost:5173
+```
 
-Keep automated testing in a separate change from this manual test-plan commit so any setup problems are easier to review and debug.
+The FitPortal frontend can still be tested without FitVisualiser running.
+
+Order creation, packing and packing summaries should remain usable. Only the external 3D visualisation will be unavailable.
+
+Tests that specifically require FitVisualiser should be marked appropriately if the service is not available.
+
+---
+
+## Manual Testing Process
+
+For each test case:
+
+1. Read the test purpose and expected result.
+2. Follow the test steps.
+3. Compare the actual behaviour with the expected behaviour.
+4. Record the result as PASS, FAIL, BLOCKED or NOT RUN.
+5. Record unexpected behaviour in the notes.
+6. Capture screenshots or browser console errors where useful.
+7. Create a GitHub issue for confirmed defects when appropriate.
+
+A test can still PASS when the required functionality works but a minor usability improvement is identified. The improvement should be recorded in the notes.
+
+---
+
+## Current Limitations
+
+Authentication is currently mocked.
+
+Because the authentication state may not persist after a full browser reload, tests involving direct URL navigation may behave differently from normal in-app navigation.
+
+This should be recorded as a limitation rather than automatically treated as a frontend failure.
+
+FitVisualiser is also maintained separately and may not always be running during FitPortal frontend testing.
+
+---
+
+## Future Testing
+
+Manual testing is the first stage of frontend testing.
+
+Future work can add automated frontend tests for areas such as:
+
+- login validation
+- registration validation
+- item entry validation
+- order creation
+- API error handling
+- routing
+- packing workflows
+- component behaviour
+
+Automated tests should be added separately without replacing the manual test cases in this folder.

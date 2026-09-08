@@ -1,35 +1,39 @@
-# FitPortal Frontend Manual Test Cases
+# FitPortal Manual Frontend Test Cases
 
-Use this file while testing the current FitPortal frontend.
+These test cases verify the main FitPortal frontend workflows.
 
 ## Result Values
 
-- **PASS** — actual behaviour matches expected behaviour
-- **FAIL** — actual behaviour does not match expected behaviour
-- **BLOCKED** — test cannot be completed because another dependency is unavailable
-- **NOT RUN** — test has not been executed yet
+Use one of the following results:
+
+- **PASS** — expected functionality worked
+- **FAIL** — expected functionality did not work
+- **BLOCKED** — test could not be completed because of another limitation or dependency
+- **NOT RUN** — test has not yet been performed
 
 ---
 
-## FE-01 — Login with valid input
+# Authentication
 
-**Priority:** High  
-**Precondition:** User is logged out.
+## FE-01 — Login with valid credentials
 
-**Steps**
-1. Open `http://127.0.0.1:5174/login`.
-2. Enter an email address.
-3. Enter a password.
-4. Select **Sign in**.
+**Priority:** High
 
-**Expected Result**
-- User is signed in using the current mocked authentication.
-- User is taken to the Orders page.
-- No uncaught error appears in the browser console.
+**Steps:**
+1. Open the Login page.
+2. Enter a valid email and password.
+3. Click Sign in.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Expected Result:**
+User is redirected to the Orders page.
+
+**Result:** PASS
+
+**Actual Behaviour:**
+Login was successful and the user was redirected to the Orders page.
+
+**Evidence / Notes:**
+Valid mock credentials allowed access to the application.
 
 ---
 
@@ -37,18 +41,27 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** High
 
-**Steps**
+**Steps:**
 1. Open the Login page.
-2. Leave the email and password empty.
-3. Select **Sign in**.
+2. Submit with both fields empty.
+3. Test with only the email entered.
+4. Test with only the password entered.
 
-**Expected Result**
-- Login does not continue.
-- A clear validation message is displayed.
+**Expected Result:**
+Login is prevented and validation feedback is displayed.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Missing fields correctly prevented login. The application displayed a general message asking for the email and password.
+
+**Evidence / Notes:**
+The functionality works, but the validation message is too general.
+
+Suggested improvement:
+- Both missing → "Enter your email and password to continue."
+- Email missing → "Enter your email to continue."
+- Password missing → "Enter your password to continue."
 
 ---
 
@@ -56,36 +69,42 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** High
 
-**Steps**
-1. Sign out if currently signed in.
-2. Enter `/orders` directly in the browser address bar.
+**Steps:**
+1. Log out.
+2. Enter `/orders` directly in the browser.
 
-**Expected Result**
-- User is redirected to the Login page.
-- Protected order information is not displayed.
+**Expected Result:**
+User cannot access the protected Orders page and is redirected to Login.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Direct access to `/orders` while logged out redirected to the Login page.
+
+**Evidence / Notes:**
+Protected route behaviour worked correctly.
 
 ---
 
-## FE-04 — Registration with required fields
+## FE-04 — Registration with valid details
 
 **Priority:** High
 
-**Steps**
+**Steps:**
 1. Open the Register page.
-2. Enter the required registration values.
-3. Submit the form.
+2. Enter valid required details.
+3. Submit the registration form.
 
-**Expected Result**
-- Registration succeeds under the current mocked authentication flow.
-- User is signed in and redirected to the Orders page.
+**Expected Result:**
+Registration succeeds and the user reaches the Orders page.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Registration succeeded and the user was redirected to the Orders page. The registered email appeared in the application header.
+
+**Evidence / Notes:**
+Valid registration flow worked correctly.
 
 ---
 
@@ -93,58 +112,69 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** High
 
-**Steps**
+**Steps:**
 1. Open the Register page.
 2. Leave one or more required fields empty.
 3. Submit the form.
 
-**Expected Result**
-- Registration does not continue.
-- A useful validation message is displayed.
+**Expected Result:**
+Registration is prevented and validation feedback is displayed.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Missing required fields prevented registration. The application displayed:
+
+"Fill in name, email and password."
+
+**Evidence / Notes:**
+Validation works, but the message is too general and should identify the specific missing field or fields.
+
+Depot / Site is optional and should not be included in required-field validation.
 
 ---
+
+# Orders
 
 ## FE-06 — Orders list loads
 
-**Priority:** High  
-**Precondition:** Frontend and Portal API are running.
+**Priority:** High
 
-**Steps**
-1. Sign in.
+**Steps:**
+1. Log in.
 2. Open the Orders page.
 
-**Expected Result**
-- Orders page loads without crashing.
-- Existing orders are displayed if data exists.
-- Order information is readable.
+**Expected Result:**
+Orders are displayed correctly. If there are no orders, a suitable empty state is displayed.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+The Orders page loaded successfully and displayed an empty state with 0 orders when no orders existed.
+
+**Evidence / Notes:**
+Empty order state displayed correctly.
 
 ---
 
-## FE-07 — Open an existing order
+## FE-07 — Open existing order
 
-**Priority:** High  
-**Precondition:** At least one order exists.
+**Priority:** High
 
-**Steps**
+**Steps:**
 1. Open the Orders page.
 2. Select an existing order.
 
-**Expected Result**
-- Correct order details are displayed.
-- Item information and packing status are visible.
-- The selected order ID matches the displayed order.
+**Expected Result:**
+The correct Order Details page opens.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Existing order `ORD-001` appeared in the Orders list with Draft status and could be opened successfully.
+
+**Evidence / Notes:**
+Correct order information was displayed.
 
 ---
 
@@ -152,40 +182,46 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** Medium
 
-**Steps**
-1. While signed in, enter a nonexistent order URL such as `/orders/ORD-999999`.
+**Steps:**
+1. While logged in, attempt to open an invalid order ID such as `/orders/ORD-999999`.
 
-**Expected Result**
-- The app handles the missing order gracefully.
-- A useful not-found or error message is shown.
-- The page does not crash.
+**Expected Result:**
+A clear not-found or error state is displayed without crashing the application.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** BLOCKED
+
+**Actual Behaviour:**
+Entering the invalid order URL directly caused the application to reload and return to the Login page because the mocked authentication state was lost.
+
+**Evidence / Notes:**
+Invalid-order handling could not be tested while authenticated through direct URL navigation.
+
+This is currently a limitation of the mocked authentication implementation.
 
 ---
 
-## FE-09 — Create an order with valid data
+# Order Creation
 
-**Priority:** High  
-**Precondition:** Portal API is running.
+## FE-09 — Create a valid order
 
-**Steps**
-1. Open **New order**.
+**Priority:** High
+
+**Steps:**
+1. Open New Order.
 2. Enter an order reference.
 3. Add at least one valid item.
-4. Create/submit the order.
+4. Click Create order.
 
-**Expected Result**
-- The frontend sends the order through the Portal API.
-- An order ID is assigned by the API.
-- The new order can be opened or is displayed after creation.
-- No duplicate order is created from one normal submission.
+**Expected Result:**
+The order is created and its Order Details page is displayed.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+A valid order was created successfully as `ORD-001` and the application redirected to its Order Details page.
+
+**Evidence / Notes:**
+Order information and totals were displayed correctly.
 
 ---
 
@@ -193,19 +229,26 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** High
 
-**Steps**
-1. Open **New order**.
-2. Add a valid item.
-3. Leave the order reference empty.
+**Steps:**
+1. Open New Order.
+2. Leave Order Reference empty.
+3. Add a valid item.
 4. Attempt to create the order.
 
-**Expected Result**
-- The order is not submitted.
-- A clear validation message is displayed.
+**Expected Result:**
+Order creation is prevented and a clear validation message is displayed.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Order creation was prevented.
+
+**Evidence / Notes:**
+The application displayed:
+
+"Add a reference so the depot can identify this order."
+
+The message clearly explained the problem.
 
 ---
 
@@ -213,42 +256,54 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** High
 
-**Steps**
-1. Open **New order**.
-2. Enter an order reference.
+**Steps:**
+1. Open New Order.
+2. Enter a valid Order Reference.
 3. Do not add any items.
-4. Attempt to create the order.
+4. Click Create order.
 
-**Expected Result**
-- The order is not submitted.
-- A message explains that at least one item is required.
+**Expected Result:**
+Order creation is prevented and the user is told that at least one item is required.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Order creation was blocked when no items were present.
+
+**Evidence / Notes:**
+The application displayed:
+
+"The server rejected this order. Check the item details."
+
+The order was correctly rejected, but the message could be clearer.
+
+Suggested message:
+
+"Add at least one item before creating the order."
 
 ---
+
+# Item Entry and Validation
 
 ## FE-12 — Add a valid item
 
 **Priority:** High
 
-**Steps**
-1. Open **New order**.
-2. Enter valid ItemCode and ItemReference values.
-3. Enter valid Width, Length and Depth values in mm.
-4. Enter a valid Weight in kg.
-5. Enter a quantity.
-6. Add the item.
+**Steps:**
+1. Open New Order.
+2. Enter valid item details.
+3. Add the item.
 
-**Expected Result**
-- Item appears in the order item list.
-- Dimensions, weight and quantity display correctly.
-- Summary information updates.
+**Expected Result:**
+The item appears in the order item list with the entered details.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+The valid item was added successfully and appeared in the order.
+
+**Evidence / Notes:**
+Valid item entry worked correctly.
 
 ---
 
@@ -256,18 +311,25 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** High
 
-**Steps**
-1. Open the item-entry form.
-2. Leave a required field empty.
+**Steps:**
+1. Leave one required item field empty.
+2. Fill the remaining required fields.
 3. Attempt to add the item.
 
-**Expected Result**
-- Item is not added.
-- A validation message identifies missing required data.
+**Expected Result:**
+The item is not added and appropriate validation feedback is displayed.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Missing required item data prevented the item from being added. The application displayed:
+
+"Item code, reference, dimensions and weight are required."
+
+**Evidence / Notes:**
+The validation works, but the message is too general.
+
+It should identify the specific missing field or fields rather than listing every required field.
 
 ---
 
@@ -275,277 +337,337 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** High
 
-**Steps**
-1. Open the item-entry form.
-2. Try zero or negative values for dimensions, weight or quantity where the UI permits entry.
-3. Attempt to add the item.
+**Steps:**
+1. Enter invalid numeric item values.
+2. Test zero dimensions.
+3. Test negative weight.
+4. Test weight above the maximum.
+5. Attempt to add the item.
 
-**Expected Result**
-- Invalid packaging values are rejected or clearly reported.
-- The application does not create a broken item.
+**Expected Result:**
+Invalid numeric values are rejected before the item is added.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** FAIL
+
+**Actual Behaviour:**
+Negative weight values were prevented by input validation. For example, entering `-1` displayed a message stating that the value must be greater than or equal to 0.
+
+Weight values above the 32 kg maximum were also rejected.
+
+However, dimensions of `0 × 0 × 0 mm` were accepted by the frontend and the item could be added to the order. The invalid order was only rejected later by the backend when attempting to create it.
+
+**Evidence / Notes:**
+Observed behaviour:
+
+- Negative weight (`-1`) → rejected
+- Weight `0` → allowed by the current frontend input constraint
+- Weight above `32 kg` → rejected
+- Dimensions `0 × 0 × 0 mm` → accepted into the frontend order
+- Creating an order containing zero dimensions → rejected by the backend
+
+Frontend dimension validation should prevent invalid zero dimensions before an item is added.
+
+Whether a weight of exactly `0 kg` should be accepted requires confirmation from the project requirements.
 
 ---
 
-## FE-15 — Remove an item
+## FE-15 — Remove item
 
 **Priority:** High
 
-**Steps**
-1. Add at least two items to a new order.
-2. Remove one item.
+**Steps:**
+1. Add two valid items.
+2. Note the order summary.
+3. Remove one item.
 
-**Expected Result**
-- Only the selected item is removed.
-- Line-item count, total units and total weight update correctly.
+**Expected Result:**
+Only the selected item is removed and the order totals update correctly.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+The selected item was removed successfully and the order summary updated correctly.
+
+**Evidence / Notes:**
+Line-item, unit and weight totals were recalculated after removal.
 
 ---
 
-## FE-16 — Quantity and total weight calculation
+## FE-16 — Quantity and total weight
 
 **Priority:** High
 
-**Steps**
-1. Add an item with a known weight.
-2. Set quantity greater than 1.
-3. Review the order totals.
+**Steps:**
+1. Add an item with quantity greater than 1.
+2. Check Total Units.
+3. Check Total Weight.
 
-**Expected Result**
-- Total units include the quantity.
-- Total weight equals item weight multiplied by quantity.
-- Multiple item lines are summed correctly.
+**Expected Result:**
+Quantity and total weight are calculated correctly.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Quantity and total weight were calculated correctly.
+
+**Evidence / Notes:**
+A quantity of 2 with an item weight of 5 kg produced a total weight of 10 kg.
 
 ---
 
-## FE-17 — Hazardous item flag
+## FE-17 — Hazardous item
 
 **Priority:** High
 
-**Steps**
-1. Create an item.
-2. Mark it as Hazardous.
-3. Add it to an order.
-4. Review the item table and order details.
+**Steps:**
+1. Enter a valid item.
+2. Select Hazardous.
+3. Add the item.
 
-**Expected Result**
-- Hazardous state remains attached to the item.
-- Hazard indicator/badge is shown where the UI is designed to display it.
+**Expected Result:**
+The item is added and its hazardous status is clearly represented. Hazard totals update correctly.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+The hazardous item was added successfully and displayed as hazardous. Hazard Flags updated correctly.
+
+**Evidence / Notes:**
+Hazard Flags changed to 1 after adding the hazardous item.
 
 ---
 
-## FE-18 — Optional BoxGroup field
+## FE-18 — Optional Box Group
 
 **Priority:** Medium
 
-**Steps**
-1. Add an item with a BoxGroup value.
-2. Add another valid item without a BoxGroup value.
+**Steps:**
+1. Enter a valid item.
+2. Leave Box Group empty.
+3. Add the item.
 
-**Expected Result**
-- Both items can be represented correctly.
-- BoxGroup remains optional.
-- The value is not lost for the item where it was entered.
+**Expected Result:**
+The item is added without requiring a Box Group.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
 
----
+**Actual Behaviour:**
+The item was added successfully with Box Group left empty.
 
-## FE-19 — Submit an existing order for packing
-
-**Priority:** High  
-**Precondition:** Portal API and FitSolver dependency are available.
-
-**Steps**
-1. Open a valid existing order.
-2. Select the action used to pack/solve the order.
-3. Observe the interface while processing.
-4. Wait for the result.
-
-**Expected Result**
-- The frontend triggers the Portal packing workflow.
-- The UI does not freeze.
-- User receives visible feedback while packing is in progress.
-- A successful packing result is displayed when complete.
-
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Evidence / Notes:**
+The item displayed `--` for Box Group.
 
 ---
 
-## FE-20 — Prevent accidental repeated packing submission
+# Packing
+
+## FE-19 — Pack existing order
 
 **Priority:** High
 
-**Steps**
-1. Open a valid order.
-2. Start packing.
-3. Rapidly select the packing action more than once.
+**Steps:**
+1. Create or open a valid saved order.
+2. Click Pack this order.
+3. Wait for the packing operation to complete.
 
-**Expected Result**
-- The frontend does not create unintended duplicate requests.
-- The interface remains stable.
+**Expected Result:**
+Packing succeeds and the packing results are displayed.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+Packing completed successfully for `ORD-002`. The order status changed to Packed and packing results appeared.
+
+**Evidence / Notes:**
+Observed results:
+
+- Boxes: 2
+- Items Packed: 14
+- Rejected: 0
+
+The Fill Rate displayed `0%`. This should be reviewed when the packing solution and summary tests are completed.
 
 ---
 
-## FE-21 — Packing request failure
+## FE-20 — Repeated packing
+
+**Priority:** Medium
+
+**Steps:**
+1. Open an order that has already been packed.
+2. Click Pack again.
+3. Observe the application response.
+
+**Expected Result:**
+The application should either perform the repacking operation or clearly explain why the action cannot be performed.
+
+**Result:** FAIL
+
+**Actual Behaviour:**
+The "Pack again" button was available, but clicking it produced no visible action, feedback or updated result.
+
+**Evidence / Notes:**
+The UI should provide clear feedback when Pack again is selected.
+
+---
+
+## FE-21 — Packing failure
 
 **Priority:** High
 
-**Steps**
-1. Create a condition where the packing request fails or use a test order known to fail.
-2. Start packing.
+**Steps:**
+1. Cause or simulate a packing/API failure.
+2. Attempt to pack an order.
 
-**Expected Result**
-- A useful error message is displayed.
-- User is not left on a permanent loading state.
-- Existing order information remains usable.
+**Expected Result:**
+A clear error is displayed and the user can recover or retry.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
 
----
+**Actual Behaviour:**
+Not tested yet.
 
-## FE-22 — Packing solution displays
-
-**Priority:** High  
-**Precondition:** A packing solution exists.
-
-**Steps**
-1. Open a solved order.
-2. View its packing result/solution.
-
-**Expected Result**
-- Packing result returned through the Portal API is displayed.
-- Important result information is readable.
-- The frontend does not calculate or invent solver results itself.
-
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
 
-## FE-23 — Packing summary displays
+## FE-22 — Packing solution
 
-**Priority:** High  
-**Precondition:** A solved order exists.
+**Priority:** High
 
-**Steps**
-1. Open a solved order.
-2. View the packing summary.
+**Steps:**
+1. Pack a valid order.
+2. Review the returned packing solution.
 
-**Expected Result**
-- Packing summary loads successfully.
-- Summary remains available independently of the 3D visualiser.
+**Expected Result:**
+Packing solution information is displayed correctly.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
+
+## FE-23 — Packing summary
+
+**Priority:** High
+
+**Steps:**
+1. Pack a valid order.
+2. Review the packing summary.
+3. Check totals and calculated values.
+
+**Expected Result:**
+Packing summary values correctly represent the returned solution.
+
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+The observed `0%` Fill Rate from FE-19 should be investigated during this test.
+
+---
+
+# FitVisualiser
 
 ## FE-24 — FitVisualiser available
 
-**Priority:** Medium  
-**Precondition:** FitVisualiser is running at `http://localhost:5173`.
+**Priority:** Medium
 
-**Steps**
-1. Open a solved order.
-2. Open/view its packing visualisation.
+**Steps:**
+1. Start FitVisualiser on port 5173.
+2. Pack an order.
+3. Open the visualisation.
 
-**Expected Result**
-- 3D visualisation is available.
-- Normal order controls remain usable.
+**Expected Result:**
+The packing solution opens successfully in FitVisualiser.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested because FitVisualiser was not running.
+
+**Evidence / Notes:**
+Requires the separate FitVisualiser application.
 
 ---
 
 ## FE-25 — FitVisualiser unavailable
 
-**Priority:** High  
-**Precondition:** Stop FitVisualiser but keep the Portal frontend/backend running.
+**Priority:** Medium
 
-**Steps**
-1. Open a solved order.
-2. Attempt to view the visualisation.
+**Steps:**
+1. Leave FitVisualiser stopped.
+2. Pack an order.
+3. Attempt to open the visualisation.
 
-**Expected Result**
-- Order creation, packing result and packing summary still work.
-- Missing visualiser does not crash the page.
-- The user receives a graceful fallback or understandable unavailable state.
+**Expected Result:**
+FitPortal should remain usable even when the external visualiser is unavailable.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** PASS
+
+**Actual Behaviour:**
+The FitVisualiser link attempted to open `http://localhost:5173`, but Safari could not connect because FitVisualiser was not running.
+
+Core FitPortal packing results remained available.
+
+**Evidence / Notes:**
+FitPortal remained usable without FitVisualiser.
+
+A possible usability improvement would be to detect when FitVisualiser is unavailable and display a clearer message instead of relying on the browser connection error.
 
 ---
+
+# API Failure Handling
 
 ## FE-26 — Portal API unavailable
 
 **Priority:** High
 
-**Steps**
-1. Stop the Portal backend.
-2. Keep the frontend running.
-3. Perform an action that requires API data, such as loading orders or creating an order.
+**Steps:**
+1. Stop the Portal API.
+2. Perform an action that requires the API.
 
-**Expected Result**
-- Frontend does not show a blank screen or crash.
-- User receives a useful error state.
-- Interface remains responsive.
+**Expected Result:**
+The frontend displays a clear failure state and does not crash.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
 
+# Responsive Layout and Accessibility
+
 ## FE-27 — Mobile layout
 
-**Priority:** High
+**Priority:** Medium
 
-**Steps**
-1. Open browser developer tools.
-2. Enable responsive/device mode.
-3. Use a width around 390 px.
-4. Test Login, Orders, New order and Order details.
+**Steps:**
+1. Open FitPortal using a mobile-sized viewport.
+2. Navigate through the main pages.
 
-**Expected Result**
-- No important controls overlap.
-- Text remains readable.
-- Forms remain usable.
-- Important navigation remains accessible.
-- Horizontal scrolling is only used where intentionally required.
+**Expected Result:**
+Content remains readable and usable without major layout problems.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
 
@@ -553,57 +675,64 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** Medium
 
-**Steps**
-1. Test approximately 768 px width.
-2. Test approximately 1440 px width.
-3. Navigate through the main workflow.
+**Steps:**
+1. Test the application using tablet and desktop viewport sizes.
+2. Navigate through the main pages.
 
-**Expected Result**
-- Layout adapts appropriately.
-- Content does not become unnecessarily stretched, clipped or overlapping.
+**Expected Result:**
+Layout adapts correctly and remains usable.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
 
-## FE-29 — Keyboard navigation and focus
+## FE-29 — Keyboard and focus
 
 **Priority:** Medium
 
-**Steps**
-1. Reload a main frontend page.
-2. Use only Tab, Shift+Tab, Enter and Space where appropriate.
-3. Move through interactive controls.
+**Steps:**
+1. Navigate through forms and controls using the keyboard.
+2. Check focus behaviour.
 
-**Expected Result**
-- Interactive controls are reachable.
-- Focus is visibly indicated.
-- Normal actions can be triggered from the keyboard where applicable.
+**Expected Result:**
+Interactive controls can be reached and used using the keyboard and focus is understandable.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
+
+# Navigation
 
 ## FE-30 — Sign out
 
 **Priority:** High
 
-**Steps**
-1. Sign in.
-2. Select **Sign out**.
-3. Attempt to return to `/orders`.
+**Steps:**
+1. Log in.
+2. Click Sign out.
 
-**Expected Result**
-- User returns to Login.
-- Protected order pages are not accessible while logged out.
+**Expected Result:**
+The user is signed out and returned to the Login page.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not formally tested yet.
+
+**Evidence / Notes:**
+Although logout was used during other tests, this test should be completed independently before marking it PASS.
 
 ---
 
@@ -611,95 +740,66 @@ Use this file while testing the current FitPortal frontend.
 
 **Priority:** Medium
 
-**Steps**
-1. Enter a nonexistent frontend URL such as `/something-that-does-not-exist`.
+**Steps:**
+1. Enter a route that does not exist.
 
-**Expected Result**
-- Application redirects or handles the route safely.
-- No blank page or crash occurs.
+**Expected Result:**
+The application handles the unknown route without crashing and displays or redirects to an appropriate page.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
+
+# Build and Responsiveness
 
 ## FE-32 — Production build
 
 **Priority:** High
 
-**Steps**
-1. From `frontend/`, run:
+**Steps:**
+1. Open the frontend directory.
+2. Run:
 
 ```bash
 npm run build
 ```
 
-**Expected Result**
-- Build completes successfully.
-- No build-breaking errors are reported.
+**Expected Result:**
+The production build completes successfully without build errors.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
+
+**Actual Behaviour:**
+Not tested yet.
+
+**Evidence / Notes:**
+Complete in a future test run.
 
 ---
 
 ## FE-33 — Basic UI responsiveness
 
-**Priority:** High
+**Priority:** Medium
 
-**Steps**
-1. Navigate quickly between major frontend pages.
-2. Add/remove several items.
-3. Start a packing request when available.
-4. Observe the browser while waiting.
+**Steps:**
+1. Navigate between main pages.
+2. Open forms and orders.
+3. Perform common frontend actions.
+4. Observe responsiveness.
 
-**Expected Result**
-- The interface remains responsive.
-- User actions give immediate visual feedback.
-- Long-running packing work does not make the browser appear frozen.
+**Expected Result:**
+The interface responds normally without freezing, major delays or unexpected crashes.
 
-**Result:** NOT RUN  
-**Actual Behaviour:**  
-**Evidence / Issue:**  
+**Result:** NOT RUN
 
----
+**Actual Behaviour:**
+Not tested yet.
 
-# Test Run Summary
-
-| ID | Test | Priority | Result |
-|---|---|---:|---|
-| FE-01 | Login with valid input | High | NOT RUN |
-| FE-02 | Empty login validation | High | NOT RUN |
-| FE-03 | Protected route | High | NOT RUN |
-| FE-04 | Registration | High | NOT RUN |
-| FE-05 | Registration validation | High | NOT RUN |
-| FE-06 | Orders list | High | NOT RUN |
-| FE-07 | Existing order | High | NOT RUN |
-| FE-08 | Invalid order | Medium | NOT RUN |
-| FE-09 | Create order | High | NOT RUN |
-| FE-10 | Missing reference | High | NOT RUN |
-| FE-11 | No items | High | NOT RUN |
-| FE-12 | Add item | High | NOT RUN |
-| FE-13 | Item validation | High | NOT RUN |
-| FE-14 | Invalid numeric values | High | NOT RUN |
-| FE-15 | Remove item | High | NOT RUN |
-| FE-16 | Quantity/weight totals | High | NOT RUN |
-| FE-17 | Hazard flag | High | NOT RUN |
-| FE-18 | BoxGroup | Medium | NOT RUN |
-| FE-19 | Pack order | High | NOT RUN |
-| FE-20 | Repeated packing request | High | NOT RUN |
-| FE-21 | Packing failure | High | NOT RUN |
-| FE-22 | Packing solution | High | NOT RUN |
-| FE-23 | Packing summary | High | NOT RUN |
-| FE-24 | Visualiser available | Medium | NOT RUN |
-| FE-25 | Visualiser unavailable | High | NOT RUN |
-| FE-26 | API unavailable | High | NOT RUN |
-| FE-27 | Mobile layout | High | NOT RUN |
-| FE-28 | Tablet/desktop layout | Medium | NOT RUN |
-| FE-29 | Keyboard navigation | Medium | NOT RUN |
-| FE-30 | Sign out | High | NOT RUN |
-| FE-31 | Unknown route | Medium | NOT RUN |
-| FE-32 | Production build | High | NOT RUN |
-| FE-33 | UI responsiveness | High | NOT RUN |
+**Evidence / Notes:**
+Complete in a future test run.
