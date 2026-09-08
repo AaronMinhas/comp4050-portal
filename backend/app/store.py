@@ -3,19 +3,30 @@
 from __future__ import annotations
 
 from app.models import Order, StoredOrder
+from app.order_references import format_order_reference
 
 _orders: dict[str, StoredOrder] = {}
 _solutions: dict[str, dict] = {}
 _next_order_number = 1
+_next_order_reference_number = 1
+
+
+def _mint_order_reference() -> str:
+    """Reserve the next reference; replace with an atomic DB sequence later."""
+    global _next_order_reference_number
+
+    reference = format_order_reference(_next_order_reference_number)
+    _next_order_reference_number += 1
+    return reference
 
 
 def save_order(order: Order) -> StoredOrder:
-    """Mint ORD-### and store the order under it."""
+    """Mint internal and external identities, then store the order."""
     global _next_order_number
 
     stored = StoredOrder(
         order_id=f"ORD-{_next_order_number:03d}",
-        reference=order.reference,
+        reference=_mint_order_reference(),
         items=order.items,
     )
     _next_order_number += 1
@@ -48,9 +59,10 @@ def find_solution(order_id: str) -> dict | None:
 
 
 def reset() -> None:
-    """Clear store. Tests start again at ORD-001."""
-    global _next_order_number
+    """Clear store. Tests start again at ORD-001 / DF-001."""
+    global _next_order_number, _next_order_reference_number
 
     _orders.clear()
     _solutions.clear()
     _next_order_number = 1
+    _next_order_reference_number = 1

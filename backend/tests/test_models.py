@@ -272,36 +272,39 @@ class TestOrder:
 
         assert Order(**payload) == order
 
-    def test_reference_may_be_omitted(self):
-        assert Order(Items=SAMPLE_ITEMS).reference is None
-
-    def test_reference_is_carried(self):
-        order = Order(Reference="Bunnings - Chullora", Items=SAMPLE_ITEMS)
-
-        assert order.reference == "Bunnings - Chullora"
-
-    def test_blank_reference_is_rejected(self):
-        with pytest.raises(ValidationError):
-            Order(Reference="   ", Items=SAMPLE_ITEMS)
+    def test_client_supplied_reference_is_rejected(self):
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            Order(Reference="DF-999", Items=SAMPLE_ITEMS)
 
 
 class TestStoredOrder:
 
     def test_status_starts_as_draft(self):
-        assert StoredOrder(OrderId="ORD-001", Items=SAMPLE_ITEMS).status == "Draft"
+        stored = StoredOrder(OrderId="ORD-001", Reference="DF-001", Items=SAMPLE_ITEMS)
+
+        assert stored.status == "Draft"
 
     def test_created_at_is_assigned_automatically(self):
-        stored = StoredOrder(OrderId="ORD-001", Items=SAMPLE_ITEMS)
+        stored = StoredOrder(OrderId="ORD-001", Reference="DF-001", Items=SAMPLE_ITEMS)
 
         assert isinstance(stored.created_at, datetime)
 
     def test_unknown_status_is_rejected(self):
         with pytest.raises(ValidationError):
-            StoredOrder(OrderId="ORD-001", Status="Shipped", Items=SAMPLE_ITEMS)
+            StoredOrder(
+                OrderId="ORD-001",
+                Reference="DF-001",
+                Status="Shipped",
+                Items=SAMPLE_ITEMS,
+            )
 
     def test_order_id_is_required(self):
         with pytest.raises(ValidationError):
-            StoredOrder(Items=SAMPLE_ITEMS)
+            StoredOrder(Reference="DF-001", Items=SAMPLE_ITEMS)
+
+    def test_reference_is_required(self):
+        with pytest.raises(ValidationError):
+            StoredOrder(OrderId="ORD-001", Items=SAMPLE_ITEMS)
 
 
 class TestValidationBehaviour:

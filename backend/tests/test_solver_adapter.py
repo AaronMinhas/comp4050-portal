@@ -92,7 +92,7 @@ def test_the_catalogue_reproduces_the_committed_fixture_interiors():
 
 
 def test_to_solver_request_carries_the_canonical_order_id():
-    order = StoredOrder(OrderId="ORD-042", Items=[an_item()])
+    order = StoredOrder(OrderId="ORD-042", Reference="DF-042", Items=[an_item()])
     request = to_solver_request(order, active_box_types())
 
     assert request["order_id"] == "ORD-042"
@@ -103,7 +103,7 @@ def test_to_solver_request_carries_the_canonical_order_id():
 def test_portal_only_fields_do_not_cross_the_boundary():
     order = StoredOrder(
         OrderId="ORD-001",
-        Reference="Bunnings - Chullora",
+        Reference="DF-001",
         Items=[an_item()],
     )
     request = to_solver_request(order, active_box_types())

@@ -37,8 +37,8 @@ export function AppProvider({ children }) {
     refreshOrders();
   }, [refreshOrders]);
 
-  const addOrder = async ({ reference, items }) => {
-    const created = await createOrder({ reference, items });
+  const addOrder = async ({ items }) => {
+    const created = await createOrder({ items });
     setOrders((previous) => [created, ...previous]);
     return created.OrderId;
   };

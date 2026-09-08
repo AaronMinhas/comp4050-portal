@@ -52,6 +52,7 @@ class TestCreateOrder:
         body = client.post("/orders", json=VALID_ORDER).json()
 
         assert body["OrderId"] == "ORD-001"
+        assert body["Reference"] == "DF-001"
 
     def test_order_ids_increment(self):
         first = client.post("/orders", json=VALID_ORDER).json()
@@ -64,6 +65,17 @@ class TestCreateOrder:
             "ORD-003",
         ]
 
+    def test_order_references_increment_independently(self):
+        first = client.post("/orders", json=VALID_ORDER).json()
+        second = client.post("/orders", json=VALID_ORDER).json()
+        third = client.post("/orders", json={"Items": [SECOND_ITEM]}).json()
+
+        assert [first["Reference"], second["Reference"], third["Reference"]] == [
+            "DF-001",
+            "DF-002",
+            "DF-003",
+        ]
+
     def test_returned_items_match_submitted_items(self):
         body = client.post("/orders", json={"Items": [VALID_ITEM, SECOND_ITEM]}).json()
 
@@ -72,7 +84,7 @@ class TestCreateOrder:
     def test_response_uses_pascal_case_field_names(self):
         body = client.post("/orders", json=VALID_ORDER).json()
 
-        assert set(body) == {"OrderId", "Items", "Status", "CreatedAt"}
+        assert set(body) == {"OrderId", "Reference", "Items", "Status", "CreatedAt"}
 
     def test_new_orders_start_as_drafts(self):
         assert client.post("/orders", json=VALID_ORDER).json()["Status"] == "Draft"
@@ -80,12 +92,12 @@ class TestCreateOrder:
     def test_created_at_is_assigned_by_the_backend(self):
         assert client.post("/orders", json=VALID_ORDER).json()["CreatedAt"]
 
-    def test_reference_is_stored_when_supplied(self):
-        body = client.post(
-            "/orders", json={**VALID_ORDER, "Reference": "Bunnings - Chullora"}
-        ).json()
+    def test_client_cannot_override_generated_reference(self):
+        response = client.post(
+            "/orders", json={**VALID_ORDER, "Reference": "CUSTOM-999"}
+        )
 
-        assert body["Reference"] == "Bunnings - Chullora"
+        assert response.status_code == 422
 
     def test_empty_box_group_is_stored_as_omitted(self):
         body = client.post(
@@ -224,9 +236,7 @@ class TestListOrders:
         assert client.get("/orders").json()[0]["OrderId"] == newest
 
     def test_listed_orders_carry_the_same_detail_as_a_single_fetch(self):
-        order_id = client.post(
-            "/orders", json={**VALID_ORDER, "Reference": "Officeworks DC"}
-        ).json()["OrderId"]
+        order_id = client.post("/orders", json=VALID_ORDER).json()["OrderId"]
 
         assert client.get("/orders").json()[0] == client.get(f"/orders/{order_id}").json()
 

@@ -1,4 +1,4 @@
-"""Order API. POST assigns ORD-###; later calls use that id. Storage is app.store."""
+"""Order API. POST assigns OrderId and Reference; routes continue using OrderId."""
 
 from fastapi import APIRouter, HTTPException, status
 

@@ -90,16 +90,16 @@ class BoxType(PortalModel):
 
 
 class Order(PortalModel):
-    """Items to pack. Reference is an optional customer name for the order."""
+    """Create-order request. Portal assigns identity after validation."""
 
-    reference: str | None = Field(default=None, alias="Reference", min_length=1)
     items: list[Item] = Field(alias="Items", min_length=1)
 
 
 class StoredOrder(Order):
-    """A stored order. OrderId, Status and CreatedAt are assigned by the Portal."""
+    """A stored order. Identity and lifecycle fields are assigned by Portal."""
 
     order_id: str = Field(alias="OrderId")
+    reference: str = Field(alias="Reference", min_length=1)
     status: OrderStatus = Field(default="Draft", alias="Status")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), alias="CreatedAt"

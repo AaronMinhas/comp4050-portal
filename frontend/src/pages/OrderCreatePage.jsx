@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
-import Field, { inputClass } from '../components/common/Field.jsx';
 import Button from '../components/common/Button.jsx';
 import ItemEntryForm from '../components/orders/ItemEntryForm.jsx';
 import ItemJsonImport from '../components/orders/ItemJsonImport.jsx';
@@ -16,7 +15,6 @@ const ENTRY_TABS = [
 export default function OrderCreatePage() {
   const { addOrder } = useApp();
   const navigate = useNavigate();
-  const [reference, setReference] = useState('');
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -30,10 +28,6 @@ export default function OrderCreatePage() {
   const handleRemoveItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
   const handleSubmit = async () => {
-    if (!reference) {
-      setError('Add a reference so the depot can identify this order.');
-      return;
-    }
     if (items.length === 0) {
       setError('Add at least one item before creating the order.');
       return;
@@ -42,7 +36,7 @@ export default function OrderCreatePage() {
     setSaving(true);
     setError('');
     try {
-      const orderId = await addOrder({ reference, items });
+      const orderId = await addOrder({ items });
       navigate(`/orders/${orderId}`);
     } catch (apiError) {
       setError(apiError.message);
@@ -54,19 +48,6 @@ export default function OrderCreatePage() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
-        <section className="rounded-sm border border-ink-100 bg-white p-5">
-          <h2 className="font-display text-lg font-semibold text-ink-700">Order details</h2>
-          <div className="cut-line my-4" />
-          <Field label="Order reference" hint="Customer, site, or PO number">
-            <input
-              className={inputClass()}
-              placeholder="Bunnings Warehouse - Chullora"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-            />
-          </Field>
-        </section>
-
         <section className="rounded-sm border border-ink-100 bg-white p-5">
           <h2 className="font-display text-lg font-semibold text-ink-700">Add items</h2>
           <p className="mt-1 text-sm text-ink-400">

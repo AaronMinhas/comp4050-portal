@@ -55,8 +55,8 @@ export function listOrders() {
   return request('/orders');
 }
 
-export function createOrder({ reference, items }) {
-  return request('/orders', asJson({ Reference: reference, Items: items }));
+export function createOrder({ items }) {
+  return request('/orders', asJson({ Items: items }));
 }
 
 export function getOrder(orderId) {
