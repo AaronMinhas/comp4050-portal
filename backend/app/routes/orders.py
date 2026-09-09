@@ -1,14 +1,32 @@
 """Order API. POST assigns OrderId and Reference; routes continue using OrderId."""
 
-from collections import Counter
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app import boxes, store
+from app import finalisation, store
 from app.auth import MockIdentity, require_finalisation_identity
+from app.errors import (
+    InventoryConsumptionError,
+    OrderNotFoundError,
+    OrderStatusConflictError,
+    SolutionHasRejectsError,
+    SolutionNotFoundError,
+)
 from app.models import Order, StoredOrder
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+ORDER_NOT_FOUND = "Order not found"
+ACTIVE_SOLUTION_NOT_FOUND = "The active optimisation solution could not be found"
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail=ORDER_NOT_FOUND
+    )
+
+
+def _conflict(detail: str) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
 
 @router.post(
@@ -25,10 +43,7 @@ def create_order(order: Order) -> StoredOrder:
 def require_order(order_id: str) -> StoredOrder:
     stored = store.find_order(order_id)
     if stored is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Order not found",
-        )
+        raise _not_found()
     return stored
 
 
@@ -39,15 +54,12 @@ def require_order(order_id: str) -> StoredOrder:
     summary="Submit a draft order for optimisation",
 )
 def submit_order(order_id: str) -> StoredOrder:
-    stored = require_order(order_id)
-    if stored.status != "DRAFT":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Only draft orders can be submitted for optimisation",
-        )
-
-    stored.status = "AWAITING_OPTIMISATION"
-    return store.update_order(stored)
+    try:
+        return store.submit_order(order_id)
+    except OrderNotFoundError as exc:
+        raise _not_found() from exc
+    except OrderStatusConflictError as exc:
+        raise _conflict(exc.detail) from exc
 
 
 @router.put(
@@ -57,16 +69,12 @@ def submit_order(order_id: str) -> StoredOrder:
     summary="Replace an order's items",
 )
 def update_order(order_id: str, order: Order) -> StoredOrder:
-    stored = require_order(order_id)
-    if stored.status == "FINAL":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Final orders are read-only and cannot be edited",
-        )
-    stored.items = order.items
-    stored.status = "DRAFT"
-    store.invalidate_solution(order_id)
-    return store.update_order(stored)
+    try:
+        return store.replace_order_items(order_id, order.items)
+    except OrderNotFoundError as exc:
+        raise _not_found() from exc
+    except OrderStatusConflictError as exc:
+        raise _conflict(exc.detail) from exc
 
 
 @router.post(
@@ -79,42 +87,27 @@ def finalise_order(
     order_id: str,
     _identity: MockIdentity = Depends(require_finalisation_identity),
 ) -> StoredOrder:
-    stored = require_order(order_id)
-    if stored.status != "OPTIMISED":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Only optimised orders can be finalised",
-        )
-
-    solution = store.find_solution(order_id)
-    if solution is None:
+    try:
+        return finalisation.finalise_order(order_id)
+    except OrderNotFoundError as exc:
+        raise _not_found() from exc
+    except OrderStatusConflictError as exc:
+        raise _conflict(exc.detail) from exc
+    except SolutionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The active optimisation solution could not be found",
-        )
-
-    reject_count = len(solution.get("rejects", []))
-    if reject_count:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "This order cannot be finalised because "
-                f"{reject_count} item(s) were not packed. Resolve the packing errors "
-                "and re-optimise before finalising."
-            ),
-        )
-
-    required = Counter(carton["sku"] for carton in solution.get("cartons", []))
-    try:
-        boxes.consume_box_stock(dict(required))
-    except boxes.InventoryConsumptionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot finalise this order. {' '.join(exc.issues)}",
+            detail=ACTIVE_SOLUTION_NOT_FOUND,
         ) from exc
-
-    stored.status = "FINAL"
-    return store.update_order(stored)
+    except SolutionHasRejectsError as exc:
+        raise _conflict(
+            "This order cannot be finalised because "
+            f"{exc.reject_count} item(s) were not packed. Resolve the packing errors "
+            "and re-optimise before finalising."
+        ) from exc
+    except InventoryConsumptionError as exc:
+        raise _conflict(
+            f"Cannot finalise this order. {' '.join(exc.issues)}"
+        ) from exc
 
 
 @router.get(

@@ -9,9 +9,10 @@ from fastapi.testclient import TestClient
 from fitsolver import portal
 
 from app import boxes, store
-from app.boxes import DEFAULT_BOX_TYPES, active_box_types
+from app.boxes import active_box_types
 from app.main import app
 from app.models import BoxTypeUpdate
+from tests.box_fixtures import DEFAULT_BOX_TYPES
 
 client = TestClient(app)
 SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}

@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fitsolver import io
 from fitsolver.engine import solve as solve_request
 
+from app import boxes as box_inventory
 from app import store
 from app.auth import MockIdentity, require_solver_identity
 from app.boxes import active_box_types
+from app.errors import OrderNotFoundError, OrderStatusConflictError
 from app.models import StoredOrder
 from app.solver_adapter import to_solver_request
 
@@ -72,12 +74,19 @@ def solve_order(
             detail=f"The packing service failed while solving {order_id}.",
         ) from exc
 
-    store.save_solution(order_id, document)
-
-    stored.status = "OPTIMISED"
-    store.update_order(stored)
-
-    return document
+    # The Solver ran without a lock, re-check state before replacing the result.
+    try:
+        return store.save_solution_for_optimised_order(order_id, document)
+    except OrderNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        ) from exc
+    except OrderStatusConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.detail,
+        ) from exc
 
 
 def _require_solution(order_id: str) -> dict:
@@ -95,7 +104,16 @@ def _require_solution(order_id: str) -> dict:
     summary="The solution document, ready for the visualiser",
 )
 def get_solution(order_id: str) -> dict:
+    """Return the unmodified document expected by FitVisualizer."""
     return _require_solution(order_id)
+
+
+def _inventory_feasibility(order_id: str, document: dict) -> dict | None:
+    """Return null after finalisation, when stock has already been consumed."""
+    stored = store.find_order(order_id)
+    if stored is None or stored.status == "FINAL":
+        return None
+    return box_inventory.assess_solution_inventory(document).model_dump(by_alias=True)
 
 
 @router.get(
@@ -107,6 +125,7 @@ def get_solution_summary(order_id: str) -> dict:
     document = _require_solution(order_id)
     return {
         "OrderId": document.get("order_id", order_id),
+        "InventoryFeasibility": _inventory_feasibility(order_id, document),
         "BoxCount": document["metrics"]["carton_count"],
         "FillRate": document["metrics"]["fill_rate"],
         "TotalWeightKg": round(document["metrics"]["total_mass"] / 1000, 3),

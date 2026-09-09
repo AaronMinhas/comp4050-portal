@@ -1,14 +1,25 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import verify_connection
 from app.routes import boxes, orders, solve
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    verify_connection()
+    yield
+
 
 app = FastAPI(
     title="FitPortal API",
     description="Backend API for FitPortal.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Portal on 5174, Visualiser on 5173. Override with FITPORTAL_CORS_ORIGINS.

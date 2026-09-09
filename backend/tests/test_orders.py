@@ -2,8 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import boxes, store
-from app.boxes import DEFAULT_BOX_TYPES
 from app.main import app
+from tests.box_fixtures import DEFAULT_BOX_TYPES
 
 client = TestClient(app)
 SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}

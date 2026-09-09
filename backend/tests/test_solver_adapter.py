@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from app.boxes import DEFAULT_BOX_TYPES
 from app.models import BoxType, Item, StoredOrder
 from app.solver_adapter import HAZARDOUS_TAG, box_to_contract, item_to_contract, to_solver_request
+from tests.box_fixtures import DEFAULT_BOX_TYPES
 
 
 def an_item(**overrides) -> Item:

@@ -1,4 +1,4 @@
-"""Box Inventory API, authorisation, and in-memory store behaviour."""
+"""Box Inventory API, authorisation, and stored inventory behaviour."""
 
 import pytest
 from fastapi.testclient import TestClient

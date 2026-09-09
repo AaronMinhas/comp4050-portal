@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import ItemsTable from '../components/orders/ItemsTable.jsx';
 import PackingDetails, { UnpackedItems } from '../components/orders/PackingDetails.jsx';
+import InventoryFeasibilityWarning from '../components/orders/InventoryFeasibilityWarning.jsx';
 import HazardBadge from '../components/common/HazardBadge.jsx';
 import Button from '../components/common/Button.jsx';
 import {
@@ -68,6 +69,18 @@ export default function OrderSummaryPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (order?.Status !== 'OPTIMISED') return undefined;
+    const refresh = async () => {
+      try {
+        setSummary(await fetchSolutionSummary(id));
+      } catch {
+      }
+    };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [id, order?.Status]);
 
   const submit = async () => {
     setActionPending(true);
@@ -149,6 +162,8 @@ export default function OrderSummaryPage() {
   }
 
   const totals = orderTotals(order.Items);
+  const feasibility =
+    order.Status === 'OPTIMISED' ? summary?.InventoryFeasibility ?? null : null;
   const editOrder = () => {
     if (order.Status === 'OPTIMISED') {
       setShowEditWarning(true);
@@ -213,6 +228,7 @@ export default function OrderSummaryPage() {
         onFinalise={() => setShowFinaliseConfirm(true)}
         canOptimise={canRunSolver(identity.role)}
         successMessage={successMessage}
+        feasibility={feasibility}
       />
 
       <div className="mt-6">
@@ -287,7 +303,9 @@ function LifecycleActions({
   onFinalise,
   canOptimise,
   successMessage,
+  feasibility,
 }) {
+  const inventoryIsShort = Boolean(feasibility) && !feasibility.Sufficient;
   let message;
   let primaryAction;
 
@@ -317,7 +335,16 @@ function LifecycleActions({
           <Button onClick={onReoptimise} disabled={pending}>
             {optimising ? 'Re-optimising...' : 'Re-optimise'}
           </Button>
-          <Button variant="danger" onClick={onFinalise} disabled={pending}>
+          <Button
+            variant="danger"
+            onClick={onFinalise}
+            disabled={pending || inventoryIsShort}
+            title={
+              inventoryIsShort
+                ? 'Box Inventory cannot currently fulfil this optimisation'
+                : undefined
+            }
+          >
             {finalising ? 'Finalising...' : 'Finalise Order'}
           </Button>
         </>
@@ -353,6 +380,13 @@ function LifecycleActions({
       {successMessage && !error && (
         <p className="mt-4 rounded-sm border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700">
           {successMessage}
+        </p>
+      )}
+      <InventoryFeasibilityWarning feasibility={feasibility} />
+      {inventoryIsShort && canOptimise && (
+        <p className="mt-2 text-sm text-ink-400">
+          Finalise Order is unavailable until Box Inventory can cover every box
+          this optimisation requires.
         </p>
       )}
     </section>

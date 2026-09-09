@@ -84,8 +84,6 @@ class Item(PortalModel):
         return value
 
 
-# TODO(#30): Persist reusable BoxType data in Supabase independently from
-# orders. Box types are reference data shared across orders, not order content.
 class BoxType(PortalModel):
     """Deployment-wide box inventory record, independent of any single order."""
 
@@ -109,6 +107,24 @@ class BoxTypeUpdate(PortalModel):
     box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0)
     active: bool = Field(alias="Active")
     maximum_boxes: int = Field(alias="MaximumBoxes", ge=0)
+
+
+class BoxRequirement(PortalModel):
+    """One solution requirement compared with current inventory."""
+
+    reference: str = Field(alias="Reference", min_length=1)
+    required: int = Field(alias="Required", ge=1)
+    available: int | None = Field(default=None, alias="Available", ge=0)
+    active: bool | None = Field(default=None, alias="Active")
+    exists: bool = Field(alias="Exists")
+    sufficient: bool = Field(alias="Sufficient")
+
+
+class InventoryFeasibility(PortalModel):
+    """Advisory only; finalisation re-checks inventory under row locks."""
+
+    sufficient: bool = Field(alias="Sufficient")
+    requirements: list[BoxRequirement] = Field(alias="Requirements")
 
 
 class BoxImportRequest(PortalModel):
