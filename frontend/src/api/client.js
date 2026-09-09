@@ -100,6 +100,10 @@ export function solveOrder(orderId) {
   return request(`/orders/${encodeURIComponent(orderId)}/solve`, { method: 'POST' });
 }
 
+export function finaliseOrder(orderId) {
+  return request(`/orders/${encodeURIComponent(orderId)}/finalise`, { method: 'POST' });
+}
+
 export function getSolution(orderId) {
   return request(`/orders/${encodeURIComponent(orderId)}/solution`);
 }

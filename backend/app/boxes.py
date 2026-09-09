@@ -51,6 +51,14 @@ class DuplicateImportReferenceError(ValueError):
     """Raised defensively if an import contains a duplicate reference."""
 
 
+class InventoryConsumptionError(ValueError):
+    """Raised with every stock issue before any inventory is mutated."""
+
+    def __init__(self, issues: list[str]):
+        self.issues = issues
+        super().__init__(" ".join(issues))
+
+
 def reset_box_inventory() -> None:
     """Clear inventory, matching a fresh deployment before boxes.json import."""
     _box_types.clear()
@@ -105,6 +113,43 @@ def active_box_types() -> list[BoxType]:
         for box in list_box_types()
         if box.active and box.maximum_boxes > 0
     ]
+
+
+def consume_box_stock(required: dict[str, int]) -> list[BoxType]:
+    """Validate all requirements, then deduct them as one logical operation."""
+    issues: list[str] = []
+    for reference, quantity in required.items():
+        box = _box_types.get(reference)
+        required_label = f"{quantity} {reference} box{'es' if quantity != 1 else ''}"
+        if box is None:
+            issues.append(
+                f"The current solution requires {required_label}, "
+                "but that box type is missing from inventory."
+            )
+        elif not box.active:
+            issues.append(
+                f"The current solution requires {required_label}, "
+                "but that box type is inactive."
+            )
+        elif box.maximum_boxes < quantity:
+            available_verb = "is" if box.maximum_boxes == 1 else "are"
+            issues.append(
+                f"The current solution requires {required_label}, but only "
+                f"{box.maximum_boxes} {available_verb} available."
+            )
+
+    if issues:
+        raise InventoryConsumptionError(issues)
+
+    updated: list[BoxType] = []
+    for reference, quantity in required.items():
+        box = _box_types[reference]
+        consumed = box.model_copy(
+            update={"maximum_boxes": box.maximum_boxes - quantity}
+        )
+        _box_types[reference] = consumed
+        updated.append(consumed.model_copy(deep=True))
+    return updated
 
 
 # TODO: Replace this process-local inventory with persistent deployment storage.

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import OrderItemsEditor from '../components/orders/OrderItemsEditor.jsx';
+import Button from '../components/common/Button.jsx';
 import { getOrder, updateOrder } from '../api/client.js';
 import { useApp } from '../context/AppContext.jsx';
 
@@ -34,6 +35,17 @@ export default function OrderEditPage() {
 
   if (error || !order) {
     return <PageMessage>{error?.message || 'Order not found'}</PageMessage>;
+  }
+
+  if (order.Status === 'FINAL') {
+    return (
+      <PageMessage>
+        <p>This order has been finalised and is permanently read-only.</p>
+        <Button className="mt-4" variant="secondary" onClick={() => navigate(`/orders/${id}`)}>
+          Return to order
+        </Button>
+      </PageMessage>
+    );
   }
 
   const save = async (items) => {

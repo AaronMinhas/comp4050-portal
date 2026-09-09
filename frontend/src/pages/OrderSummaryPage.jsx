@@ -9,6 +9,7 @@ import {
   getOrder as fetchOrder,
   getSolution as fetchSolution,
   getSolutionSummary as fetchSolutionSummary,
+  finaliseOrder,
   solveOrder,
   submitOrder,
   visualiserUrl,
@@ -35,6 +36,7 @@ export default function OrderSummaryPage() {
   const [actionPending, setActionPending] = useState(false);
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [showReoptimiseConfirm, setShowReoptimiseConfirm] = useState(false);
+  const [showFinaliseConfirm, setShowFinaliseConfirm] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,7 +45,7 @@ export default function OrderSummaryPage() {
       setOrder(loaded);
       setLoadError(null);
 
-      if (loaded.Status === 'OPTIMISED') {
+      if (['OPTIMISED', 'FINAL'].includes(loaded.Status)) {
         try {
           const [loadedSummary, loadedSolution] = await Promise.all([
             fetchSolutionSummary(id),
@@ -105,6 +107,22 @@ export default function OrderSummaryPage() {
       setPackError(error);
     } finally {
       setOptimising(false);
+    }
+  };
+
+  const finalise = async () => {
+    setActionPending(true);
+    setPackError(null);
+    setSuccessMessage('');
+    try {
+      const finalised = await finaliseOrder(id);
+      setOrder(finalised);
+      setSuccessMessage('Order finalised successfully. Required box stock has been deducted.');
+      await refreshOrders();
+    } catch (error) {
+      setPackError(error);
+    } finally {
+      setActionPending(false);
     }
   };
 
@@ -185,11 +203,14 @@ export default function OrderSummaryPage() {
       <LifecycleActions
         status={order.Status}
         pending={actionPending || optimising}
+        optimising={optimising}
+        finalising={actionPending && order.Status === 'OPTIMISED'}
         error={packError}
         onEdit={editOrder}
         onSubmit={submit}
         onOptimise={optimise}
         onReoptimise={() => setShowReoptimiseConfirm(true)}
+        onFinalise={() => setShowFinaliseConfirm(true)}
         canOptimise={canRunSolver(identity.role)}
         successMessage={successMessage}
       />
@@ -227,6 +248,15 @@ export default function OrderSummaryPage() {
           }}
         />
       )}
+      {showFinaliseConfirm && (
+        <FinaliseModal
+          onCancel={() => setShowFinaliseConfirm(false)}
+          onConfirm={() => {
+            setShowFinaliseConfirm(false);
+            finalise();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -247,11 +277,14 @@ function Stat({ label, value, accent }) {
 function LifecycleActions({
   status,
   pending,
+  optimising,
+  finalising,
   error,
   onEdit,
   onSubmit,
   onOptimise,
   onReoptimise,
+  onFinalise,
   canOptimise,
   successMessage,
 }) {
@@ -276,15 +309,22 @@ function LifecycleActions({
         </Button>
       );
     }
-  } else {
+  } else if (status === 'OPTIMISED') {
     message = 'This order has a current optimisation result.';
     if (canOptimise) {
       primaryAction = (
-        <Button onClick={onReoptimise} disabled={pending}>
-          {pending ? 'Re-optimising...' : 'Re-optimise'}
-        </Button>
+        <>
+          <Button onClick={onReoptimise} disabled={pending}>
+            {optimising ? 'Re-optimising...' : 'Re-optimise'}
+          </Button>
+          <Button variant="danger" onClick={onFinalise} disabled={pending}>
+            {finalising ? 'Finalising...' : 'Finalise Order'}
+          </Button>
+        </>
       );
     }
+  } else {
+    message = 'This order has been finalised and is now read-only.';
   }
 
   return (
@@ -297,9 +337,11 @@ function LifecycleActions({
           <p className="mt-1 text-sm text-ink-400">{message}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={onEdit} disabled={pending}>
-            Edit order
-          </Button>
+          {status !== 'FINAL' && (
+            <Button variant="secondary" onClick={onEdit} disabled={pending}>
+              Edit order
+            </Button>
+          )}
           {primaryAction}
         </div>
       </div>
@@ -387,6 +429,34 @@ function ReoptimiseModal({ onCancel, onConfirm }) {
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
           <Button onClick={onConfirm}>Re-optimise</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinaliseModal({ onCancel, onConfirm }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-700/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="finalise-title"
+    >
+      <div className="w-full max-w-lg rounded-sm bg-white p-5 shadow-xl">
+        <h2 id="finalise-title" className="font-display text-xl font-semibold text-ink-700">
+          Finalise Order?
+        </h2>
+        <p className="mt-3 text-sm text-ink-500">
+          This will approve the current packing solution, deduct the required boxes
+          from inventory, and permanently lock this order.
+        </p>
+        <p className="mt-3 text-sm font-semibold text-red-600">
+          This action cannot be undone.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button variant="danger" onClick={onConfirm}>Finalise Order</Button>
         </div>
       </div>
     </div>

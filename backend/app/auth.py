@@ -62,3 +62,4 @@ require_solver_identity = require_roles(Role.SUPERVISOR, Role.ADMINISTRATOR)
 require_inventory_manager_identity = require_roles(
     Role.SUPERVISOR, Role.ADMINISTRATOR
 )
+require_finalisation_identity = require_roles(Role.SUPERVISOR, Role.ADMINISTRATOR)
