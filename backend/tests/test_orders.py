@@ -1,10 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app import store
+from app import boxes, store
+from app.boxes import DEFAULT_BOX_TYPES
 from app.main import app
 
 client = TestClient(app)
+SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}
 
 VALID_ITEM = {
     "ItemCode": "ITM-001",
@@ -87,7 +89,7 @@ class TestCreateOrder:
         assert set(body) == {"OrderId", "Reference", "Items", "Status", "CreatedAt"}
 
     def test_new_orders_start_as_drafts(self):
-        assert client.post("/orders", json=VALID_ORDER).json()["Status"] == "Draft"
+        assert client.post("/orders", json=VALID_ORDER).json()["Status"] == "DRAFT"
 
     def test_created_at_is_assigned_by_the_backend(self):
         assert client.post("/orders", json=VALID_ORDER).json()["CreatedAt"]
@@ -176,7 +178,9 @@ class TestCreateOrder:
 
         assert response.status_code == 422
 
-    @pytest.mark.parametrize("field, value", [("Status", "Packed"), ("CreatedAt", "2020-01-01")])
+    @pytest.mark.parametrize(
+        "field, value", [("Status", "OPTIMISED"), ("CreatedAt", "2020-01-01")]
+    )
     def test_caller_supplied_server_fields_are_rejected(self, field, value):
         response = client.post("/orders", json={**VALID_ORDER, field: value})
 
@@ -214,6 +218,107 @@ class TestGetOrder:
         assert response.json()["detail"] == "Order not found"
 
 
+class TestSubmitOrder:
+    def test_draft_order_can_be_submitted(self):
+        created = client.post("/orders", json=VALID_ORDER).json()
+
+        response = client.post(f"/orders/{created['OrderId']}/submit")
+
+        assert response.status_code == 200
+        assert response.json()["Status"] == "AWAITING_OPTIMISATION"
+        assert response.json()["Items"] == created["Items"]
+        assert response.json()["OrderId"] == created["OrderId"]
+        assert response.json()["Reference"] == created["Reference"]
+        assert response.json()["CreatedAt"] == created["CreatedAt"]
+
+    def test_unknown_order_cannot_be_submitted(self):
+        response = client.post("/orders/ORD-404/submit")
+
+        assert response.status_code == 404
+
+    def test_awaiting_order_cannot_be_submitted_again(self):
+        order_id = client.post("/orders", json=VALID_ORDER).json()["OrderId"]
+        client.post(f"/orders/{order_id}/submit")
+
+        response = client.post(f"/orders/{order_id}/submit")
+
+        assert response.status_code == 409
+
+    def test_optimised_order_cannot_be_submitted(self):
+        order_id = client.post("/orders", json=VALID_ORDER).json()["OrderId"]
+        client.post(f"/orders/{order_id}/submit")
+        client.post(f"/orders/{order_id}/solve", headers=SUPERVISOR_HEADERS)
+
+        response = client.post(f"/orders/{order_id}/submit")
+
+        assert response.status_code == 409
+
+
+class TestUpdateOrder:
+    def test_draft_order_items_can_be_replaced(self):
+        created = client.post("/orders", json=VALID_ORDER).json()
+
+        response = client.put(
+            f"/orders/{created['OrderId']}", json={"Items": [SECOND_ITEM]}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["Items"] == [as_stored(SECOND_ITEM)]
+        assert response.json()["Status"] == "DRAFT"
+        assert response.json()["OrderId"] == created["OrderId"]
+        assert response.json()["Reference"] == created["Reference"]
+        assert response.json()["CreatedAt"] == created["CreatedAt"]
+
+    def test_editing_awaiting_order_returns_it_to_draft(self):
+        order_id = client.post("/orders", json=VALID_ORDER).json()["OrderId"]
+        client.post(f"/orders/{order_id}/submit")
+
+        response = client.put(f"/orders/{order_id}", json={"Items": [SECOND_ITEM]})
+
+        assert response.status_code == 200
+        assert response.json()["Status"] == "DRAFT"
+
+    def test_editing_optimised_order_invalidates_solution(self):
+        for box in DEFAULT_BOX_TYPES:
+            boxes.add_box_type(box)
+        order_id = client.post("/orders", json=VALID_ORDER).json()["OrderId"]
+        client.post(f"/orders/{order_id}/submit")
+        assert (
+            client.post(f"/orders/{order_id}/solve", headers=SUPERVISOR_HEADERS).status_code
+            == 200
+        )
+
+        response = client.put(f"/orders/{order_id}", json={"Items": [SECOND_ITEM]})
+
+        assert response.status_code == 200
+        assert response.json()["Status"] == "DRAFT"
+        assert client.get(f"/orders/{order_id}/solution").status_code == 404
+        assert client.get(f"/orders/{order_id}/solution/summary").status_code == 404
+
+    def test_unknown_order_cannot_be_updated(self):
+        response = client.put("/orders/ORD-404", json=VALID_ORDER)
+
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "field, value",
+        [
+            ("OrderId", "ORD-999"),
+            ("Reference", "DF-999"),
+            ("CreatedAt", "2020-01-01"),
+            ("Status", "OPTIMISED"),
+        ],
+    )
+    def test_update_cannot_override_server_owned_fields(self, field, value):
+        order_id = client.post("/orders", json=VALID_ORDER).json()["OrderId"]
+
+        response = client.put(
+            f"/orders/{order_id}", json={**VALID_ORDER, field: value}
+        )
+
+        assert response.status_code == 422
+
+
 class TestListOrders:
     def test_no_orders_is_an_empty_list(self):
         response = client.get("/orders")
@@ -248,4 +353,6 @@ class TestDocumentation:
         assert "post" in paths["/orders"]
         assert "get" in paths["/orders"]
         assert "get" in paths["/orders/{order_id}"]
+        assert "put" in paths["/orders/{order_id}"]
+        assert "post" in paths["/orders/{order_id}/submit"]
         assert "get" in paths["/health"]

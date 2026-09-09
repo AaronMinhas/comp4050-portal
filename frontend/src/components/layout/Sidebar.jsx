@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom';
 const LINKS = [
   { to: '/orders', label: 'Orders', icon: '01' },
   { to: '/orders/new', label: 'New order', icon: '02' },
+  { to: '/boxes', label: 'Box Inventory', icon: '03' },
 ];
 
 export default function Sidebar() {

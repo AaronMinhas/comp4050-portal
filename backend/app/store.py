@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.boxes import reset_box_inventory
 from app.models import Order, StoredOrder
 from app.order_references import format_order_reference
 
@@ -58,11 +59,21 @@ def find_solution(order_id: str) -> dict | None:
     return _solutions.get(order_id)
 
 
+def invalidate_solution(order_id: str) -> None:
+    """Discard the active result after an edit makes it stale.
+
+    TODO: Version history should retain invalidated solutions rather than
+    permanently discarding them.
+    """
+    _solutions.pop(order_id, None)
+
+
 def reset() -> None:
     """Clear store. Tests start again at ORD-001 / DF-001."""
     global _next_order_number, _next_order_reference_number
 
     _orders.clear()
     _solutions.clear()
+    reset_box_inventory()
     _next_order_number = 1
     _next_order_reference_number = 1

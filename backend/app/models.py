@@ -13,15 +13,30 @@ of orders.
 """
 
 from datetime import datetime, timezone
+from enum import StrEnum
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-# Draft until packed, Packed once a solution exists.
-OrderStatus = Literal["Draft", "Packed"]
+OrderStatus = Literal["DRAFT", "AWAITING_OPTIMISATION", "OPTIMISED"]
 
 ITEM_CODE_PATTERN = re.compile(r"^(?:ITM-)?(\d+)$", re.IGNORECASE)
+
+
+class Role(StrEnum):
+    """Stable role values shared by the Portal API contract."""
+
+    ADMINISTRATOR = "ADMINISTRATOR"
+    SUPERVISOR = "SUPERVISOR"
+    USER = "USER"
+
+
+ROLE_LABELS: dict[Role, str] = {
+    Role.ADMINISTRATOR: "Administrator",
+    Role.SUPERVISOR: "Supervisor",
+    Role.USER: "User",
+}
 
 
 class PortalModel(BaseModel):
@@ -72,12 +87,7 @@ class Item(PortalModel):
 # TODO(#30): Persist reusable BoxType data in Supabase independently from
 # orders. Box types are reference data shared across orders, not order content.
 class BoxType(PortalModel):
-    """Reusable box type reference data, independent of any single order.
-
-    Omitted optional fields carry meaning: no `max_weight` means no weight
-    limit, no `box_weight` means empty-box weight is not considered, and no
-    `maximum_boxes` means unlimited quantity.
-    """
+    """Deployment-wide box inventory record, independent of any single order."""
 
     reference: str = Field(alias="Reference", min_length=1)
     width: float = Field(alias="Width", gt=0)
@@ -86,7 +96,44 @@ class BoxType(PortalModel):
     max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0)
     box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0)
     active: bool = Field(default=True, alias="Active")
-    maximum_boxes: int | None = Field(default=None, alias="MaximumBoxes", gt=0)
+    maximum_boxes: int = Field(alias="MaximumBoxes", ge=0)
+
+
+class BoxTypeUpdate(PortalModel):
+    """Mutable box fields; Reference is deliberately absent and immutable."""
+
+    width: float = Field(alias="Width", gt=0)
+    length: float = Field(alias="Length", gt=0)
+    depth: float = Field(alias="Depth", gt=0)
+    max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0)
+    box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0)
+    active: bool = Field(alias="Active")
+    maximum_boxes: int = Field(alias="MaximumBoxes", ge=0)
+
+
+class BoxImportRequest(PortalModel):
+    """Final reviewed inventory states to apply as one logical operation."""
+
+    boxes: list[BoxType] = Field(alias="Boxes", min_length=1)
+
+    @model_validator(mode="after")
+    def references_are_unique(self) -> "BoxImportRequest":
+        references = [box.reference for box in self.boxes]
+        duplicates = sorted(
+            reference for reference in set(references) if references.count(reference) > 1
+        )
+        if duplicates:
+            raise ValueError(
+                f"Duplicate box Reference values in import: {', '.join(duplicates)}"
+            )
+        return self
+
+
+class BoxImportResponse(PortalModel):
+    """Summary of one successfully applied atomic import."""
+
+    imported: int = Field(alias="Imported")
+    boxes: list[BoxType] = Field(alias="Boxes")
 
 
 class Order(PortalModel):
@@ -100,7 +147,7 @@ class StoredOrder(Order):
 
     order_id: str = Field(alias="OrderId")
     reference: str = Field(alias="Reference", min_length=1)
-    status: OrderStatus = Field(default="Draft", alias="Status")
+    status: OrderStatus = Field(default="DRAFT", alias="Status")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), alias="CreatedAt"
     )

@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import orders, solve
+from app.routes import boxes, orders, solve
 
 app = FastAPI(
     title="FitPortal API",
@@ -29,12 +29,14 @@ _origins = (
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_methods=["GET", "POST"],
-    allow_headers=["content-type"],
+    allow_methods=["GET", "POST", "PUT"],
+    # X-FitPortal-Mock-Role is development-only until real authentication lands.
+    allow_headers=["content-type", "x-fitportal-mock-role"],
 )
 
 app.include_router(orders.router)
 app.include_router(solve.router)
+app.include_router(boxes.router)
 
 
 @app.get("/health", tags=["status"])

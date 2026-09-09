@@ -1,12 +1,13 @@
-"""Pack a stored order. Re-solving overwrites the solution for the same OrderId."""
+"""Optimise submitted orders and expose the active solution."""
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fitsolver import io
 from fitsolver.engine import solve as solve_request
 
 from app import store
+from app.auth import MockIdentity, require_solver_identity
 from app.boxes import active_box_types
 from app.models import StoredOrder
 from app.solver_adapter import to_solver_request
@@ -14,6 +15,11 @@ from app.solver_adapter import to_solver_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/orders", tags=["solve"])
+
+NO_AVAILABLE_BOXES_DETAIL = (
+    "No available box types. Add or import at least one active box with available "
+    "quantity before running optimisation."
+)
 
 
 def _require_order(order_id: str) -> StoredOrder:
@@ -31,14 +37,22 @@ def _require_order(order_id: str) -> StoredOrder:
     summary="Pack an order",
     response_description="A solution document, as contract/solution.schema.json",
 )
-def solve_order(order_id: str) -> dict:
+def solve_order(
+    order_id: str,
+    _identity: MockIdentity = Depends(require_solver_identity),
+) -> dict:
     stored = _require_order(order_id)
+    if stored.status not in {"AWAITING_OPTIMISATION", "OPTIMISED"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only orders awaiting optimisation or already optimised can be solved",
+        )
 
     boxes = active_box_types()
     if not boxes:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="No active box types: the solver has nothing to pack into.",
+            detail=NO_AVAILABLE_BOXES_DETAIL,
         )
 
     request = to_solver_request(stored, boxes)
@@ -60,7 +74,7 @@ def solve_order(order_id: str) -> dict:
 
     store.save_solution(order_id, document)
 
-    stored.status = "Packed"
+    stored.status = "OPTIMISED"
     store.update_order(stored)
 
     return document

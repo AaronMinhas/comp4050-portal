@@ -1,29 +1,40 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import ItemsTable from '../components/orders/ItemsTable.jsx';
+import PackingDetails, { UnpackedItems } from '../components/orders/PackingDetails.jsx';
 import HazardBadge from '../components/common/HazardBadge.jsx';
 import Button from '../components/common/Button.jsx';
 import {
   getOrder as fetchOrder,
+  getSolution as fetchSolution,
   getSolutionSummary as fetchSolutionSummary,
   solveOrder,
+  submitOrder,
   visualiserUrl,
 } from '../api/client.js';
 import { formatCreated, orderTotals } from '../lib/orders.js';
+import { ORDER_STATUS_STYLES, orderStatusLabel } from '../lib/orderStatus.js';
+import { canRunSolver } from '../lib/roles.js';
 
 export default function OrderSummaryPage() {
   const { id } = useParams();
-  const { refreshOrders } = useApp();
+  const navigate = useNavigate();
+  const { identity, refreshOrders } = useApp();
 
   const [order, setOrder] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [summary, setSummary] = useState(null);
-  const [packing, setPacking] = useState(false);
+  const [solution, setSolution] = useState(null);
+  const [optimising, setOptimising] = useState(false);
   const [packError, setPackError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
   const [solveCount, setSolveCount] = useState(0);
+  const [actionPending, setActionPending] = useState(false);
+  const [showEditWarning, setShowEditWarning] = useState(false);
+  const [showReoptimiseConfirm, setShowReoptimiseConfirm] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,11 +43,17 @@ export default function OrderSummaryPage() {
       setOrder(loaded);
       setLoadError(null);
 
-      if (loaded.Status === 'Packed') {
+      if (loaded.Status === 'OPTIMISED') {
         try {
-          setSummary(await fetchSolutionSummary(id));
+          const [loadedSummary, loadedSolution] = await Promise.all([
+            fetchSolutionSummary(id),
+            fetchSolution(id),
+          ]);
+          setSummary(loadedSummary);
+          setSolution(loadedSolution);
         } catch {
           setSummary(null);
+          setSolution(null);
         }
       }
     } catch (error) {
@@ -50,19 +67,44 @@ export default function OrderSummaryPage() {
     load();
   }, [load]);
 
-  const pack = async () => {
-    setPacking(true);
+  const submit = async () => {
+    setActionPending(true);
     setPackError(null);
     try {
-      await solveOrder(id);
-      setSummary(await fetchSolutionSummary(id));
-      setSolveCount((count) => count + 1);
-      setOrder((current) => (current ? { ...current, Status: 'Packed' } : current));
-      refreshOrders();
+      const submitted = await submitOrder(id);
+      setOrder(submitted);
+      await refreshOrders();
     } catch (error) {
       setPackError(error);
     } finally {
-      setPacking(false);
+      setActionPending(false);
+    }
+  };
+
+  const optimise = async ({ reoptimising = false } = {}) => {
+    setOptimising(true);
+    setPackError(null);
+    setSuccessMessage('');
+    try {
+      await solveOrder(id);
+      const [updatedSummary, updatedSolution] = await Promise.all([
+        fetchSolutionSummary(id),
+        fetchSolution(id),
+      ]);
+      setSummary(updatedSummary);
+      setSolution(updatedSolution);
+      setSolveCount((count) => count + 1);
+      setOrder((current) => (current ? { ...current, Status: 'OPTIMISED' } : current));
+      setSuccessMessage(
+        reoptimising
+          ? 'Re-optimisation completed using the current Box Inventory.'
+          : 'Optimisation completed.'
+      );
+      await refreshOrders();
+    } catch (error) {
+      setPackError(error);
+    } finally {
+      setOptimising(false);
     }
   };
 
@@ -89,6 +131,13 @@ export default function OrderSummaryPage() {
   }
 
   const totals = orderTotals(order.Items);
+  const editOrder = () => {
+    if (order.Status === 'OPTIMISED') {
+      setShowEditWarning(true);
+      return;
+    }
+    navigate(`/orders/${id}/edit`);
+  };
 
   return (
     <div>
@@ -112,8 +161,10 @@ export default function OrderSummaryPage() {
               Created {formatCreated(order.CreatedAt)}
             </p>
           </div>
-          <span className="rounded-sm bg-brand-50 px-3 py-1 text-sm font-medium text-brand-600">
-            {order.Status}
+          <span
+            className={`rounded-sm px-3 py-1 text-sm font-medium ${ORDER_STATUS_STYLES[order.Status] || 'bg-ink-50 text-ink-500'}`}
+          >
+            {orderStatusLabel(order.Status)}
           </span>
         </div>
 
@@ -131,18 +182,28 @@ export default function OrderSummaryPage() {
         </div>
       </div>
 
+      <LifecycleActions
+        status={order.Status}
+        pending={actionPending || optimising}
+        error={packError}
+        onEdit={editOrder}
+        onSubmit={submit}
+        onOptimise={optimise}
+        onReoptimise={() => setShowReoptimiseConfirm(true)}
+        canOptimise={canRunSolver(identity.role)}
+        successMessage={successMessage}
+      />
+
       <div className="mt-6">
         <h3 className="mb-3 font-display text-lg font-semibold text-ink-700">Items</h3>
         <ItemsTable items={order.Items} />
       </div>
 
-      <PackingPanel
+      <OptimisationPanel
         orderId={order.OrderId}
-        packing={packing}
         summary={summary}
+        solution={solution}
         solveCount={solveCount}
-        error={packError}
-        onPack={pack}
       />
 
       <div className="mt-6 flex justify-end gap-3">
@@ -150,6 +211,22 @@ export default function OrderSummaryPage() {
           <Button variant="secondary">Done</Button>
         </Link>
       </div>
+
+      {showEditWarning && (
+        <EditWarningModal
+          onCancel={() => setShowEditWarning(false)}
+          onContinue={() => navigate(`/orders/${id}/edit`)}
+        />
+      )}
+      {showReoptimiseConfirm && (
+        <ReoptimiseModal
+          onCancel={() => setShowReoptimiseConfirm(false)}
+          onConfirm={() => {
+            setShowReoptimiseConfirm(false);
+            optimise({ reoptimising: true });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -167,80 +244,178 @@ function Stat({ label, value, accent }) {
   );
 }
 
-function PackingPanel({ orderId, packing, summary, solveCount, error, onPack }) {
-  const rejected = summary?.Rejected ?? [];
-  const visualiser = visualiserUrl(orderId);
+function LifecycleActions({
+  status,
+  pending,
+  error,
+  onEdit,
+  onSubmit,
+  onOptimise,
+  onReoptimise,
+  canOptimise,
+  successMessage,
+}) {
+  let message;
+  let primaryAction;
+
+  if (status === 'DRAFT') {
+    message = 'This order can still be edited before it is submitted for optimisation.';
+    primaryAction = (
+      <Button onClick={onSubmit} disabled={pending}>
+        {pending ? 'Submitting...' : 'Submit for Optimisation'}
+      </Button>
+    );
+  } else if (status === 'AWAITING_OPTIMISATION') {
+    message = canOptimise
+      ? 'This order is awaiting optimisation. Editing it will return it to Draft.'
+      : 'This order is waiting for a Supervisor to run optimisation.';
+    if (canOptimise) {
+      primaryAction = (
+        <Button onClick={onOptimise} disabled={pending}>
+          {pending ? 'Running...' : 'Run Optimisation'}
+        </Button>
+      );
+    }
+  } else {
+    message = 'This order has a current optimisation result.';
+    if (canOptimise) {
+      primaryAction = (
+        <Button onClick={onReoptimise} disabled={pending}>
+          {pending ? 'Re-optimising...' : 'Re-optimise'}
+        </Button>
+      );
+    }
+  }
 
   return (
-    <div className="mt-6 rounded-sm border border-ink-100 bg-white p-6">
+    <section className="mt-6 rounded-sm border border-ink-100 bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="font-display text-lg font-semibold text-ink-700">Packing</h3>
-          <p className="mt-1 text-sm text-ink-400">
-            Sends this order to FitSolver, then shows the result in FitVisualizer.
-          </p>
+          <h3 className="font-display text-lg font-semibold text-ink-700">
+            {orderStatusLabel(status)}
+          </h3>
+          <p className="mt-1 text-sm text-ink-400">{message}</p>
         </div>
-        <Button onClick={onPack} disabled={packing}>
-          {packing ? 'Packing...' : summary ? 'Pack again' : 'Pack this order'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={onEdit} disabled={pending}>
+            Edit order
+          </Button>
+          {primaryAction}
+        </div>
       </div>
-
       {error && (
         <p className="mt-4 rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error.message}
         </p>
       )}
-
-      {summary && (
-        <>
-          <div className="cut-line my-5" />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Stat label="Boxes" value={summary.BoxCount} />
-            <Stat label="Items packed" value={summary.ItemsPacked} />
-            <Stat
-              label="Rejected"
-              value={rejected.length}
-              accent={rejected.length > 0}
-            />
-            <Stat label="Fill rate" value={`${Math.round(summary.FillRate * 1000) / 10}%`} />
-          </div>
-
-          {rejected.length > 0 && (
-            <ul className="mt-5 space-y-2">
-              {rejected.map((reject) => (
-                <li
-                  key={`${reject.ItemCode}-${reject.Reason}`}
-                  className="rounded-sm border border-hazard/40 bg-hazard/10 p-3 text-sm text-hazard-ink"
-                >
-                  <span className="font-mono font-medium">{reject.ItemCode}</span> could not
-                  be packed: {reject.Detail}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <p className="font-mono text-xs uppercase tracking-wide text-ink-300">
-              Packed as {orderId}
-            </p>
-            <a
-              href={visualiser}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-brand-500 hover:underline"
-            >
-              Open in a new tab
-            </a>
-          </div>
-
-          <iframe
-            key={`${orderId}-${solveCount}`}
-            src={visualiser}
-            title={`FitVisualizer, order ${orderId}`}
-            className="mt-3 h-[560px] w-full rounded-sm border border-ink-100 bg-white"
-          />
-        </>
+      {successMessage && !error && (
+        <p className="mt-4 rounded-sm border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700">
+          {successMessage}
+        </p>
       )}
+    </section>
+  );
+}
+
+function OptimisationPanel({ orderId, summary, solution, solveCount }) {
+  if (!summary) return null;
+
+  const rejected = summary?.Rejected ?? [];
+  const visualiser = visualiserUrl(orderId);
+
+  return (
+    <div className="mt-6 rounded-sm border border-ink-100 bg-white p-6">
+      <h3 className="font-display text-lg font-semibold text-ink-700">Optimisation result</h3>
+      <p className="mt-1 text-sm text-ink-400">
+        FitSolver result and FitVisualizer layout for the current order items.
+      </p>
+      <div className="cut-line my-5" />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Boxes" value={summary.BoxCount} />
+        <Stat label="Items packed" value={summary.ItemsPacked} />
+        <Stat
+          label="Rejected"
+          value={rejected.length}
+          accent={rejected.length > 0}
+        />
+        <Stat label="Fill rate" value={`${Math.round(summary.FillRate * 1000) / 10}%`} />
+      </div>
+
+      {solution && <UnpackedItems rejects={solution.rejects} />}
+      {solution && <PackingDetails key={solution.solution_id} solution={solution} />}
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="font-mono text-xs uppercase tracking-wide text-ink-300">
+          Optimised order {orderId}
+        </p>
+        <a
+          href={visualiser}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm text-brand-500 hover:underline"
+        >
+          Open in a new tab
+        </a>
+      </div>
+
+      <iframe
+        key={`${orderId}-${solveCount}`}
+        src={visualiser}
+        title={`FitVisualizer, order ${orderId}`}
+        className="mt-3 h-[560px] w-full rounded-sm border border-ink-100 bg-white"
+      />
+    </div>
+  );
+}
+
+function ReoptimiseModal({ onCancel, onConfirm }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-700/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reoptimise-title"
+    >
+      <div className="w-full max-w-lg rounded-sm bg-white p-5 shadow-xl">
+        <h2 id="reoptimise-title" className="font-display text-xl font-semibold text-ink-700">
+          Re-optimise Order?
+        </h2>
+        <p className="mt-3 text-sm text-ink-500">
+          This will run the Solver again using the current Box Inventory and replace
+          the current optimisation result if successful.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button onClick={onConfirm}>Re-optimise</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditWarningModal({ onCancel, onContinue }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-700/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-warning-title"
+    >
+      <div className="w-full max-w-lg rounded-sm bg-white p-5 shadow-xl">
+        <h2 id="edit-warning-title" className="font-display text-xl font-semibold text-ink-700">
+          Edit optimised order?
+        </h2>
+        <p className="mt-3 text-sm text-ink-500">
+          Editing this order will invalidate the current optimisation. You will need to
+          submit and optimise the order again.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={onContinue}>Continue to edit</Button>
+        </div>
+      </div>
     </div>
   );
 }

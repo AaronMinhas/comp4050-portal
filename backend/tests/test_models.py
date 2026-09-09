@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from app.models import BoxType, Item, Order, StoredOrder
+from app.models import ROLE_LABELS, BoxType, Item, Order, Role, StoredOrder
 
 SAMPLE_ITEMS = [
     {
@@ -53,6 +53,7 @@ SAMPLE_BOX_TYPES = [
         "MaxWeight": 15.2,
         "BoxWeight": 0.75,
         "Active": True,
+        "MaximumBoxes": 100,
     },
     {
         "Reference": "LRG",
@@ -60,6 +61,7 @@ SAMPLE_BOX_TYPES = [
         "Length": 1200,
         "Depth": 1200,
         "Active": False,
+        "MaximumBoxes": 100,
     },
 ]
 
@@ -68,6 +70,14 @@ VALID_BOX_TYPE = SAMPLE_BOX_TYPES[0]
 
 # Quantity 1, Hazardous false unless the caller sets them.
 ITEM_DEFAULTS = {"Quantity": 1, "Hazardous": False}
+
+
+def test_roles_have_stable_values_and_user_facing_labels():
+    assert {role.value: ROLE_LABELS[role] for role in Role} == {
+        "ADMINISTRATOR": "Administrator",
+        "SUPERVISOR": "Supervisor",
+        "USER": "User",
+    }
 
 
 def without(payload: dict, key: str) -> dict:
@@ -212,25 +222,31 @@ class TestBoxType:
         with pytest.raises(ValidationError):
             BoxType(**{**VALID_BOX_TYPE, "Reference": "   "})
 
-    @pytest.mark.parametrize(
-        "field", ["MaxWeight", "BoxWeight", "MaximumBoxes"]
-    )
+    @pytest.mark.parametrize("field", ["MaxWeight", "BoxWeight"])
     def test_optional_field_may_be_omitted(self, field):
         box_type = BoxType(**without(VALID_BOX_TYPE, field))
 
         assert getattr(box_type, {
             "MaxWeight": "max_weight",
             "BoxWeight": "box_weight",
-            "MaximumBoxes": "maximum_boxes",
         }[field]) is None
 
-    @pytest.mark.parametrize(
-        "field", ["MaxWeight", "BoxWeight", "MaximumBoxes"]
-    )
+    @pytest.mark.parametrize("field", ["MaxWeight", "BoxWeight"])
     @pytest.mark.parametrize("value", [0, -1])
     def test_non_positive_optional_value_is_rejected(self, field, value):
         with pytest.raises(ValidationError):
             BoxType(**{**VALID_BOX_TYPE, field: value})
+
+    def test_maximum_boxes_is_required(self):
+        with pytest.raises(ValidationError):
+            BoxType(**without(VALID_BOX_TYPE, "MaximumBoxes"))
+
+    def test_zero_maximum_boxes_is_valid(self):
+        assert BoxType(**{**VALID_BOX_TYPE, "MaximumBoxes": 0}).maximum_boxes == 0
+
+    def test_negative_maximum_boxes_is_rejected(self):
+        with pytest.raises(ValidationError):
+            BoxType(**{**VALID_BOX_TYPE, "MaximumBoxes": -1})
 
     def test_active_defaults_to_true_when_omitted(self):
         box_type = BoxType(**without(VALID_BOX_TYPE, "Active"))
@@ -282,7 +298,7 @@ class TestStoredOrder:
     def test_status_starts_as_draft(self):
         stored = StoredOrder(OrderId="ORD-001", Reference="DF-001", Items=SAMPLE_ITEMS)
 
-        assert stored.status == "Draft"
+        assert stored.status == "DRAFT"
 
     def test_created_at_is_assigned_automatically(self):
         stored = StoredOrder(OrderId="ORD-001", Reference="DF-001", Items=SAMPLE_ITEMS)
@@ -322,7 +338,9 @@ class TestValidationBehaviour:
             depth=30,
             weight=1.5,
         )
-        box_type = BoxType(reference="XL", width=10, length=20, depth=30)
+        box_type = BoxType(
+            reference="XL", width=10, length=20, depth=30, maximum_boxes=1
+        )
 
         assert item.item_code == "ITM-004"
         assert box_type.reference == "XL"

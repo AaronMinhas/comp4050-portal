@@ -6,20 +6,29 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { createOrder, listOrders } from '../api/client.js';
+import { createOrder, listOrders, setMockIdentityRole } from '../api/client.js';
+import { isRole, ROLES } from '../lib/roles.js';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  // Mock auth only - no backend call yet. Any credentials "succeed".
-  const [user, setUser] = useState(null);
+  // Temporary mock identity only - no backend authentication call yet.
+  const [identity, setIdentity] = useState(null);
 
   const [orders, setOrders] = useState([]);
   const [ordersError, setOrdersError] = useState(null);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
-  const login = (email) => setUser({ email, name: email.split('@')[0] });
-  const logout = () => setUser(null);
+  const login = (email, role = ROLES.USER) => {
+    if (!isRole(role)) throw new Error(`Invalid mock role: ${role}`);
+    const nextIdentity = { email, name: email.split('@')[0], role };
+    setMockIdentityRole(role);
+    setIdentity(nextIdentity);
+  };
+  const logout = () => {
+    setMockIdentityRole(null);
+    setIdentity(null);
+  };
 
   const refreshOrders = useCallback(async () => {
     setLoadingOrders(true);
@@ -45,7 +54,7 @@ export function AppProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      user,
+      identity,
       login,
       logout,
       orders,
@@ -54,7 +63,7 @@ export function AppProvider({ children }) {
       refreshOrders,
       addOrder,
     }),
-    [user, orders, ordersError, loadingOrders, refreshOrders]
+    [identity, orders, ordersError, loadingOrders, refreshOrders]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

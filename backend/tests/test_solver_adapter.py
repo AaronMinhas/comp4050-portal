@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.boxes import active_box_types
+from app.boxes import DEFAULT_BOX_TYPES
 from app.models import BoxType, Item, StoredOrder
 from app.solver_adapter import HAZARDOUS_TAG, box_to_contract, item_to_contract, to_solver_request
 
@@ -64,24 +64,32 @@ def test_hazardous_becomes_a_tag_not_a_packing_rule():
 
 
 def test_box_reference_becomes_sku():
-    box = BoxType(Reference="BOX-S", Width=220, Length=160, Depth=120, MaxWeight=15)
+    box = BoxType(
+        Reference="BOX-S", Width=220, Length=160, Depth=120,
+        MaxWeight=15, MaximumBoxes=1,
+    )
     assert box_to_contract(box)["sku"] == "BOX-S"
 
 
 def test_missing_box_weight_is_a_zero_tare():
-    box = BoxType(Reference="BOX-S", Width=220, Length=160, Depth=120, MaxWeight=15)
+    box = BoxType(
+        Reference="BOX-S", Width=220, Length=160, Depth=120,
+        MaxWeight=15, MaximumBoxes=1,
+    )
     assert box_to_contract(box)["tare_mass"] == 0
 
 
 def test_missing_max_weight_is_an_unlimited_carton():
-    box = BoxType(Reference="BOX-S", Width=220, Length=160, Depth=120)
+    box = BoxType(
+        Reference="BOX-S", Width=220, Length=160, Depth=120, MaximumBoxes=1
+    )
     assert box_to_contract(box)["max_contents_mass"] is None
 
 
 def test_the_catalogue_reproduces_the_committed_fixture_interiors():
     interiors = {
         box_to_contract(box)["sku"]: box_to_contract(box)["inner_dims"]
-        for box in active_box_types()
+        for box in DEFAULT_BOX_TYPES
     }
 
     assert interiors == {
@@ -93,7 +101,7 @@ def test_the_catalogue_reproduces_the_committed_fixture_interiors():
 
 def test_to_solver_request_carries_the_canonical_order_id():
     order = StoredOrder(OrderId="ORD-042", Reference="DF-042", Items=[an_item()])
-    request = to_solver_request(order, active_box_types())
+    request = to_solver_request(order, DEFAULT_BOX_TYPES)
 
     assert request["order_id"] == "ORD-042"
     assert len(request["items"]) == 1
@@ -106,9 +114,10 @@ def test_portal_only_fields_do_not_cross_the_boundary():
         Reference="DF-001",
         Items=[an_item()],
     )
-    request = to_solver_request(order, active_box_types())
+    request = to_solver_request(order, DEFAULT_BOX_TYPES)
 
     assert "Reference" not in request
     assert "Status" not in request
     assert "CreatedAt" not in request
     assert "reference" not in request
+    assert all("maximum_boxes" not in carton for carton in request["cartons"])

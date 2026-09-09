@@ -20,8 +20,8 @@ npm install
 npm run dev
 ```
 
-The app is at `http://127.0.0.1:5174`. Sign in with any email/password (auth is
-mocked — no credential check happens yet) or use "Create account".
+The app is at `http://127.0.0.1:5174`. Select a development role to prefill its
+editable mock credentials (no credential check happens yet).
 
 API and visualiser URLs default in `src/api/client.js`. Override with `VITE_PORTAL_API_BASE` or `VITE_VISUALISER_BASE` only if you need different hosts.
 
@@ -30,11 +30,12 @@ API and visualiser URLs default in `src/api/client.js`. Override with `VITE_PORT
 | Acceptance criterion | Where |
 |---|---|
 | App layout/navigation | `src/components/layout/AppLayout.jsx`, `Sidebar.jsx`, `TopBar.jsx` |
-| Login / Register pages | `src/pages/LoginPage.jsx`, `RegisterPage.jsx` |
+| Mock login page | `src/pages/LoginPage.jsx` |
 | Portal API client | `src/api/client.js` |
 | Order creation page | `src/pages/OrderCreatePage.jsx` |
 | Item entry components | `src/components/orders/ItemEntryForm.jsx`, `ItemsTable.jsx` |
 | Order list / details | `src/pages/OrdersListPage.jsx`, `OrderSummaryPage.jsx` |
+| Box Inventory and reviewed JSON import | `src/pages/BoxInventoryPage.jsx`, `src/components/boxes/BoxJsonImport.jsx` |
 | Pack and visualise | `OrderSummaryPage.jsx` (calls `POST /orders/{id}/solve`, embeds FitVisualizer) |
 | Hazard flag in UI | `src/components/common/HazardBadge.jsx` (tag in tables, ribbon on the order summary card) + checkbox in item entry |
 

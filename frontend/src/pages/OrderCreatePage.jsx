@@ -1,119 +1,22 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
-import Button from '../components/common/Button.jsx';
-import ItemEntryForm from '../components/orders/ItemEntryForm.jsx';
-import ItemJsonImport from '../components/orders/ItemJsonImport.jsx';
-import ItemsTable from '../components/orders/ItemsTable.jsx';
-import { orderTotals } from '../lib/orders.js';
-
-const ENTRY_TABS = [
-  { id: 'manual', label: 'Manual entry' },
-  { id: 'json', label: 'Import JSON' },
-];
+import OrderItemsEditor from '../components/orders/OrderItemsEditor.jsx';
 
 export default function OrderCreatePage() {
   const { addOrder } = useApp();
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [entryTab, setEntryTab] = useState('manual');
 
-  const totals = useMemo(() => orderTotals(items), [items]);
-
-  const handleAddItem = (item) => setItems((prev) => [...prev, item]);
-  const handleImportItems = (importedItems) =>
-    setItems((prev) => [...prev, ...importedItems]);
-  const handleRemoveItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
-
-  const handleSubmit = async () => {
-    if (items.length === 0) {
-      setError('Add at least one item before creating the order.');
-      return;
-    }
-
-    setSaving(true);
-    setError('');
-    try {
-      const orderId = await addOrder({ items });
-      navigate(`/orders/${orderId}`);
-    } catch (apiError) {
-      setError(apiError.message);
-    } finally {
-      setSaving(false);
-    }
+  const create = async (items) => {
+    const orderId = await addOrder({ items });
+    navigate(`/orders/${orderId}`);
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
-        <section className="rounded-sm border border-ink-100 bg-white p-5">
-          <h2 className="font-display text-lg font-semibold text-ink-700">Add items</h2>
-          <p className="mt-1 text-sm text-ink-400">
-            Enter items to be packed. Dimensions in mm, weight in kg.
-          </p>
-          <div className="mt-4 flex gap-1 rounded-sm border border-ink-100 bg-ink-50 p-1">
-            {ENTRY_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setEntryTab(tab.id)}
-                className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  entryTab === tab.id
-                    ? 'bg-white text-ink-700 shadow-sm'
-                    : 'text-ink-400 hover:text-ink-600'
-                }`}
-                aria-pressed={entryTab === tab.id}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="cut-line my-4" />
-          {entryTab === 'manual' ? (
-            <ItemEntryForm onAdd={handleAddItem} />
-          ) : (
-            <ItemJsonImport onImport={handleImportItems} />
-          )}
-        </section>
-      </div>
-
-      <div className="space-y-6">
-        <section className="sticky top-6 rounded-sm border border-ink-100 bg-white p-5">
-          <h2 className="font-display text-lg font-semibold text-ink-700">Order summary</h2>
-          <div className="cut-line my-4" />
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-ink-400">Line items</dt>
-              <dd className="font-mono text-ink-700">{items.length}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-400">Total units</dt>
-              <dd className="font-mono text-ink-700">{totals.units}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-400">Total weight</dt>
-              <dd className="font-mono text-ink-700">{totals.weight} kg</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-400">Hazardous lines</dt>
-              <dd className="font-mono text-hazard-ink">{totals.hazardCount}</dd>
-            </div>
-          </dl>
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-          <Button className="mt-5 w-full" onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Creating...' : 'Create order'}
-          </Button>
-        </section>
-      </div>
-
-      <div className="lg:col-span-3">
-        <h2 className="mb-3 font-display text-lg font-semibold text-ink-700">
-          Items on this order
-        </h2>
-        <ItemsTable items={items} onRemove={handleRemoveItem} />
-      </div>
-    </div>
+    <OrderItemsEditor
+      onSave={create}
+      saveLabel="Create order"
+      savingLabel="Creating..."
+    />
   );
 }
