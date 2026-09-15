@@ -4,11 +4,7 @@ import { useApp } from '../context/AppContext.jsx';
 import Button from '../components/common/Button.jsx';
 import HazardBadge from '../components/common/HazardBadge.jsx';
 import { formatCreated, orderTotals } from '../lib/orders.js';
-
-const STATUS_STYLE = {
-  Draft: 'bg-ink-50 text-ink-500',
-  Packed: 'bg-ink-700 text-white',
-};
+import { ORDER_STATUS_STYLES, orderStatusLabel } from '../lib/orderStatus.js';
 
 export default function OrdersListPage() {
   const { orders, ordersError, loadingOrders, refreshOrders } = useApp();
@@ -85,9 +81,9 @@ export default function OrdersListPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`rounded-sm px-2 py-1 text-xs font-medium ${STATUS_STYLE[order.Status] || 'bg-ink-50 text-ink-500'}`}
+                        className={`rounded-sm px-2 py-1 text-xs font-medium ${ORDER_STATUS_STYLES[order.Status] || 'bg-ink-50 text-ink-500'}`}
                       >
-                        {order.Status}
+                        {orderStatusLabel(order.Status)}
                       </span>
                     </td>
                   </tr>

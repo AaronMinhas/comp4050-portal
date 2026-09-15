@@ -36,6 +36,7 @@ export function validateItemFields(raw, { label } = {}) {
     errors.push(`${prefix}Unrecognised field(s): ${unknownFields.join(', ')}.`);
   }
 
+  // ItemCode is the client's own identifier: any non-blank text.
   for (const field of REQUIRED_STRING_FIELDS) {
     const value = raw[field];
     if (typeof value !== 'string' || !value.trim()) {
@@ -90,7 +91,7 @@ export function weightExceedsLimit(weight) {
 }
 
 /** Coerce a validated raw item into the normalised shape used in item state. */
-function normaliseItem(raw) {
+export function normaliseItem(raw) {
   const item = {
     ItemCode: raw.ItemCode.trim(),
     ItemReference: raw.ItemReference.trim(),

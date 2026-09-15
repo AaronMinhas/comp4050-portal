@@ -44,6 +44,7 @@ def box_to_contract(box: BoxType) -> dict:
         "max_contents_mass": (
             _grams(box.max_weight) if box.max_weight is not None else None
         ),
+        "maximum_boxes": box.maximum_boxes,
     }
 
 
