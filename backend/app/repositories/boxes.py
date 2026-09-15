@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -90,6 +90,16 @@ def update_box_type(
     return _to_box_type(record)
 
 
+def delete_box_type(session: Session, reference: str) -> bool:
+    """Solutions keep their sku text, so finalising one later reports the box as missing."""
+    record = session.get(BoxTypeRecord, reference)
+    if record is None:
+        return False
+    session.delete(record)
+    session.flush()
+    return True
+
+
 def import_box_types(session: Session, imported: Iterable[BoxType]) -> list[BoxType]:
     records = list(imported)
     references = [box.reference for box in records]
@@ -123,9 +133,13 @@ def import_box_types(session: Session, imported: Iterable[BoxType]) -> list[BoxT
 
 
 def active_box_types(session: Session) -> list[BoxType]:
+    """Solver-eligible boxes: active, with no quantity limit or some remaining."""
     records = session.scalars(
         select(BoxTypeRecord)
-        .where(BoxTypeRecord.active.is_(True), BoxTypeRecord.maximum_boxes > 0)
+        .where(
+            BoxTypeRecord.active.is_(True),
+            or_(BoxTypeRecord.maximum_boxes.is_(None), BoxTypeRecord.maximum_boxes > 0),
+        )
         .order_by(BoxTypeRecord.sort_key)
     ).all()
     return [_to_box_type(record) for record in records]
@@ -162,7 +176,7 @@ def assess_requirements(
 
 
 def consume_box_stock(session: Session, required: dict[str, int]) -> list[BoxType]:
-    """Validate locked rows before deducting any stock."""
+    """Validate locked rows before deducting any stock. Unlimited boxes are never consumed."""
     locked = lock_box_types(session, required)
 
     feasibility = inventory.assess_requirements(
@@ -175,7 +189,8 @@ def consume_box_stock(session: Session, required: dict[str, int]) -> list[BoxTyp
     updated: list[BoxType] = []
     for reference, quantity in required.items():
         record = locked[reference]
-        record.maximum_boxes = record.maximum_boxes - quantity
+        if record.maximum_boxes is not None:
+            record.maximum_boxes = record.maximum_boxes - quantity
         updated.append(_to_box_type(record))
     session.flush()
     return updated

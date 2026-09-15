@@ -130,7 +130,7 @@ class OrderItemRecord(Base):
         ),
         CheckConstraint("position >= 0", name="order_items_position_is_zero_based"),
         CheckConstraint(
-            "item_code ~ '^ITM-[0-9]{3,}$'", name="order_items_item_code_is_canonical"
+            "length(btrim(item_code)) > 0", name="order_items_item_code_not_blank"
         ),
         CheckConstraint(
             "length(btrim(item_reference)) > 0",
@@ -167,7 +167,8 @@ class BoxTypeRecord(Base):
     box_weight: Mapped[float | None] = mapped_column(Numeric, nullable=True)
 
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    maximum_boxes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Quantity available to use. NULL means no limit and is never consumed.
+    maximum_boxes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         CheckConstraint(

@@ -131,7 +131,7 @@ export default function OrderSummaryPage() {
     try {
       const finalised = await finaliseOrder(id);
       setOrder(finalised);
-      setSuccessMessage('Order finalised successfully. Required box stock has been deducted.');
+      setSuccessMessage('Order finalised successfully. Box Inventory quantities have been updated.');
       await refreshOrders();
     } catch (error) {
       setPackError(error);
@@ -242,6 +242,7 @@ export default function OrderSummaryPage() {
         summary={summary}
         solution={solution}
         solveCount={solveCount}
+        items={order.Items}
       />
 
       <div className="mt-6 flex justify-end gap-3">
@@ -394,7 +395,7 @@ function LifecycleActions({
   );
 }
 
-function OptimisationPanel({ orderId, summary, solution, solveCount }) {
+function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
   const [handoff, setHandoff] = useState(null);
   const [handoffLoading, setHandoffLoading] = useState(false);
   const [handoffError, setHandoffError] = useState(null);
@@ -440,7 +441,7 @@ function OptimisationPanel({ orderId, summary, solution, solveCount }) {
       </div>
 
       {solution && <UnpackedItems rejects={solution.rejects} />}
-      {solution && <PackingDetails key={solution.solution_id} solution={solution} />}
+      {solution && <PackingDetails key={solution.solution_id} solution={solution} items={items} />}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="font-mono text-xs uppercase tracking-wide text-ink-300">

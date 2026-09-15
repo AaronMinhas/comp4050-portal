@@ -3,11 +3,8 @@ import Field, { inputClass } from '../common/Field.jsx';
 import Button from '../common/Button.jsx';
 import { emptyItemDraft } from '../../data/mockData.js';
 import {
-  ITEM_CODE_ERROR,
   MAX_ITEM_WEIGHT_KG,
-  isValidItemCode,
   normaliseItem,
-  normaliseItemCode,
   validateItemFields,
   weightExceedsLimit,
 } from '../../lib/itemValidation.js';
@@ -31,22 +28,9 @@ export default function ItemEntryForm({
 
   const weightTooHigh = weightExceedsLimit(draft.Weight);
 
-  const handleItemCodeBlur = () => {
-    const hasInvalidCode = draft.ItemCode.trim() && !isValidItemCode(draft.ItemCode);
-    setDraft((current) => ({
-      ...current,
-      ItemCode: normaliseItemCode(current.ItemCode),
-    }));
-    if (hasInvalidCode) {
-      setError(ITEM_CODE_ERROR);
-    } else if (error === ITEM_CODE_ERROR) {
-      setError('');
-    }
-  };
-
   const handleAdd = (e) => {
     e.preventDefault();
-    const candidate = { ...draft, ItemCode: normaliseItemCode(draft.ItemCode) };
+    const candidate = { ...draft };
     const validationErrors = validateItemFields(candidate);
     if (validationErrors.length > 0) {
       if (weightExceedsLimit(candidate.Weight)) {
@@ -71,13 +55,12 @@ export default function ItemEntryForm({
     <form onSubmit={handleAdd} className="space-y-4">
       <p className="text-xs text-ink-300">* Required</p>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Item code *" hint="Enter a number, e.g. 12 → ITM-012">
+        <Field label="Item code *">
           <input
             className={inputClass('font-mono')}
-            placeholder="12"
+            placeholder="ITM-001"
             value={draft.ItemCode}
             onChange={update('ItemCode')}
-            onBlur={handleItemCodeBlur}
           />
         </Field>
         <Field label="Item reference *">

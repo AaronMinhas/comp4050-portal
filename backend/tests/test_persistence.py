@@ -220,6 +220,22 @@ class TestBoxInventoryPersistence:
         assert [box.reference for box in boxes.list_box_types()] == ["MED"]
         assert boxes.active_box_types() == []
 
+    def test_missing_and_zero_maximum_boxes_are_stored_distinctly(self, replica_session):
+        open_box = {key: value for key, value in MED.items() if key != "MaximumBoxes"}
+        response = client.post(
+            "/boxes/import",
+            json={"Boxes": [
+                {**open_box, "Reference": "OPEN"},
+                {**MED, "Reference": "NONE-LEFT", "MaximumBoxes": 0},
+            ]},
+            headers=SUPERVISOR_HEADERS,
+        )
+
+        assert response.status_code == 200
+        assert replica_session.get(BoxTypeRecord, "OPEN").maximum_boxes is None
+        assert replica_session.get(BoxTypeRecord, "NONE-LEFT").maximum_boxes == 0
+        assert [box.reference for box in boxes.active_box_types()] == ["OPEN"]
+
     def test_box_references_remain_case_sensitive(self):
         boxes.add_box_type(BoxType(**MED))
         boxes.add_box_type(BoxType(**{**MED, "Reference": "med"}))

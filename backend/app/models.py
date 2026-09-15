@@ -14,15 +14,12 @@ of orders.
 
 from datetime import datetime, timezone
 from enum import StrEnum
-import re
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 OrderStatus = Literal["DRAFT", "AWAITING_OPTIMISATION", "OPTIMISED", "FINAL"]
-
-ITEM_CODE_PATTERN = re.compile(r"^(?:ITM-)?(\d+)$", re.IGNORECASE)
 
 
 class Role(StrEnum):
@@ -58,7 +55,8 @@ class PortalModel(BaseModel):
 class Item(PortalModel):
     """An item to pack. Quantity defaults to 1; Hazardous defaults to false."""
 
-    item_code: str = Field(alias="ItemCode", min_length=1, pattern=r"^ITM-\d{3,}$")
+    # The client's own identifier: any non-blank text, stored as given.
+    item_code: str = Field(alias="ItemCode", min_length=1)
     item_reference: str = Field(alias="ItemReference", min_length=1)
     width: int = Field(alias="Width", gt=0)
     length: int = Field(alias="Length", gt=0)
@@ -67,17 +65,6 @@ class Item(PortalModel):
     box_group: str | None = Field(default=None, alias="BoxGroup", min_length=1)
     quantity: int = Field(default=1, alias="Quantity", ge=1)
     hazardous: bool = Field(default=False, alias="Hazardous")
-
-    @field_validator("item_code", mode="before")
-    @classmethod
-    def normalise_item_code(cls, value: object) -> object:
-        """Accept numeric shorthand but always retain a canonical item code."""
-        if not isinstance(value, str):
-            return value
-        match = ITEM_CODE_PATTERN.fullmatch(value.strip())
-        if not match:
-            raise ValueError("ItemCode must be a number or ITM- followed by a number")
-        return f"ITM-{match.group(1).zfill(3)}"
 
     @field_validator("box_group", mode="before")
     @classmethod
@@ -91,7 +78,11 @@ class Item(PortalModel):
 
 
 class BoxType(PortalModel):
-    """Deployment-wide box inventory record, independent of any single order."""
+    """Deployment-wide box inventory record, independent of any single order.
+
+    MaximumBoxes is the quantity of this box type available to use. None means
+    no limit; finalising an order subtracts the boxes used from a set quantity.
+    """
 
     reference: str = Field(alias="Reference", min_length=1)
     width: float = Field(alias="Width", gt=0)
@@ -100,7 +91,7 @@ class BoxType(PortalModel):
     max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0)
     box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0)
     active: bool = Field(default=True, alias="Active")
-    maximum_boxes: int = Field(alias="MaximumBoxes", ge=0)
+    maximum_boxes: int | None = Field(default=None, alias="MaximumBoxes", ge=0)
 
 
 class BoxTypeUpdate(PortalModel):
@@ -112,7 +103,7 @@ class BoxTypeUpdate(PortalModel):
     max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0)
     box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0)
     active: bool = Field(alias="Active")
-    maximum_boxes: int = Field(alias="MaximumBoxes", ge=0)
+    maximum_boxes: int | None = Field(default=None, alias="MaximumBoxes", ge=0)
 
 
 class BoxRequirement(PortalModel):

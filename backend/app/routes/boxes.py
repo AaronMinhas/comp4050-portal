@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app import boxes
 from app.auth import (
@@ -96,3 +96,20 @@ def update_box_type(
             detail="Box type not found",
         )
     return updated
+
+
+@router.delete(
+    "/{reference}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently delete a box type",
+)
+def delete_box_type(
+    reference: str,
+    _user: Annotated[PortalUser, Depends(require_inventory_manager)],
+) -> Response:
+    if not boxes.delete_box_type(reference):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Box type not found",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

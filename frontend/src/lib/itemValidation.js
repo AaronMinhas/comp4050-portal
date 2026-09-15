@@ -3,28 +3,8 @@
 // backend/app/models.py).
 
 export const MAX_ITEM_WEIGHT_KG = 32;
-export const ITEM_CODE_ERROR =
-  'Item code must be a number or ITM- followed by a number (for example, 12 or ITM-012).';
 
-const ITEM_CODE_PATTERN = /^(?:ITM-)?\d+$/i;
-
-export function isValidItemCode(value) {
-  return typeof value === 'string' && ITEM_CODE_PATTERN.test(value.trim());
-}
-
-/**
- * Turn a numeric item code into the Portal's canonical code format. Existing
- * non-numeric codes are left alone so this remains compatible with imported
- * data that already follows the API contract.
- */
-export function normaliseItemCode(value) {
-  const trimmed = String(value ?? '').trim();
-  const numericCode = trimmed.match(/^(?:ITM-)?(\d+)$/i);
-  if (!numericCode) return trimmed;
-  return `ITM-${numericCode[1].padStart(3, '0')}`;
-}
-
-const REQUIRED_STRING_FIELDS = ['ItemReference'];
+const REQUIRED_STRING_FIELDS = ['ItemCode', 'ItemReference'];
 const REQUIRED_POSITIVE_NUMBER_FIELDS = ['Width', 'Length', 'Depth', 'Weight'];
 const KNOWN_FIELDS = new Set([
   'ItemCode',
@@ -56,12 +36,7 @@ export function validateItemFields(raw, { label } = {}) {
     errors.push(`${prefix}Unrecognised field(s): ${unknownFields.join(', ')}.`);
   }
 
-  if (typeof raw.ItemCode !== 'string' || !raw.ItemCode.trim()) {
-    errors.push(`${prefix}"ItemCode" is required and must be a non-empty string.`);
-  } else if (!isValidItemCode(raw.ItemCode)) {
-    errors.push(`${prefix}${ITEM_CODE_ERROR}`);
-  }
-
+  // ItemCode is the client's own identifier: any non-blank text.
   for (const field of REQUIRED_STRING_FIELDS) {
     const value = raw[field];
     if (typeof value !== 'string' || !value.trim()) {
@@ -118,7 +93,7 @@ export function weightExceedsLimit(weight) {
 /** Coerce a validated raw item into the normalised shape used in item state. */
 export function normaliseItem(raw) {
   const item = {
-    ItemCode: normaliseItemCode(raw.ItemCode),
+    ItemCode: raw.ItemCode.trim(),
     ItemReference: raw.ItemReference.trim(),
     Width: Number(raw.Width),
     Length: Number(raw.Length),

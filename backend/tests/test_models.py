@@ -61,7 +61,6 @@ SAMPLE_BOX_TYPES = [
         "Length": 1200,
         "Depth": 1200,
         "Active": False,
-        "MaximumBoxes": 100,
     },
 ]
 
@@ -118,22 +117,10 @@ class TestItem:
             Item(**{**VALID_ITEM, "Weght": 2.8})
 
     @pytest.mark.parametrize(
-        "value, expected",
-        [
-            ("1", "ITM-001"),
-            ("01", "ITM-001"),
-            ("ITM-1", "ITM-001"),
-            ("ITM-01", "ITM-001"),
-            ("ITM-1234", "ITM-1234"),
-        ],
+        "value", ["ITM-001", "ABC", "12", "01", "PART-123-A", "ROD-A", "Cube 89"]
     )
-    def test_item_code_shorthand_is_canonicalised(self, value, expected):
-        assert Item(**{**VALID_ITEM, "ItemCode": value}).item_code == expected
-
-    @pytest.mark.parametrize("value", ["MUG", "ABC", "ITEM-001", "ITM-ABC", "001-A"])
-    def test_invalid_item_code_format_is_rejected(self, value):
-        with pytest.raises(ValidationError, match="ItemCode must be"):
-            Item(**{**VALID_ITEM, "ItemCode": value})
+    def test_any_non_blank_item_code_is_accepted_unchanged(self, value):
+        assert Item(**{**VALID_ITEM, "ItemCode": value}).item_code == value
 
     @pytest.mark.parametrize("dimension", ["Width", "Length", "Depth"])
     @pytest.mark.parametrize("value", [0, -1])
@@ -237,12 +224,24 @@ class TestBoxType:
         with pytest.raises(ValidationError):
             BoxType(**{**VALID_BOX_TYPE, field: value})
 
-    def test_maximum_boxes_is_required(self):
-        with pytest.raises(ValidationError):
-            BoxType(**without(VALID_BOX_TYPE, "MaximumBoxes"))
+    def test_omitted_maximum_boxes_means_no_limit(self):
+        assert BoxType(**without(VALID_BOX_TYPE, "MaximumBoxes")).maximum_boxes is None
 
-    def test_zero_maximum_boxes_is_valid(self):
-        assert BoxType(**{**VALID_BOX_TYPE, "MaximumBoxes": 0}).maximum_boxes == 0
+    def test_null_maximum_boxes_means_no_limit(self):
+        assert BoxType(**{**VALID_BOX_TYPE, "MaximumBoxes": None}).maximum_boxes is None
+
+    def test_zero_maximum_boxes_is_preserved(self):
+        box_type = BoxType(**{**VALID_BOX_TYPE, "MaximumBoxes": 0})
+
+        assert box_type.maximum_boxes == 0
+        assert box_type.maximum_boxes is not None
+
+    def test_stock_is_not_a_box_field(self):
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            BoxType(**{**VALID_BOX_TYPE, "Stock": 5})
+
+    def test_positive_maximum_boxes_is_preserved(self):
+        assert BoxType(**{**VALID_BOX_TYPE, "MaximumBoxes": 7}).maximum_boxes == 7
 
     def test_negative_maximum_boxes_is_rejected(self):
         with pytest.raises(ValidationError):
@@ -357,3 +356,4 @@ class TestValidationBehaviour:
 
     def test_surrounding_whitespace_is_stripped(self):
         assert Item(**{**VALID_ITEM, "ItemCode": "  ITM-001  "}).item_code == "ITM-001"
+        assert Item(**{**VALID_ITEM, "ItemCode": "  ABC  "}).item_code == "ABC"

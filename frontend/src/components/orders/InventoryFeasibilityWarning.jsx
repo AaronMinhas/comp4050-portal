@@ -42,6 +42,8 @@ export default function InventoryFeasibilityWarning({ feasibility }) {
 function shortageDetail({ Required, Available, Active, Exists }) {
   const required = `${Required} required`;
   if (!Exists) return `${required} — box type no longer exists in inventory`;
-  if (!Active) return `${required} / ${Available} available — box type is inactive`;
-  return `${required} / ${Available} available`;
+  // Available is null for a box with no quantity limit.
+  const available = Available == null ? 'no limit' : `${Available} available`;
+  if (!Active) return `${required} / ${available} — box type is inactive`;
+  return `${required} / ${available}`;
 }

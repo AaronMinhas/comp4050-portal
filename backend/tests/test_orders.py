@@ -142,21 +142,44 @@ class TestCreateOrder:
 
         assert response.status_code == 422
 
-    def test_item_code_shorthand_is_stored_canonically(self):
+    @pytest.mark.parametrize("value", ["ABC", "12", "ITM-12", "PART-123-A"])
+    def test_item_code_is_stored_exactly_as_given(self, value):
         response = client.post(
-            "/orders", json={"Items": [{**VALID_ITEM, "ItemCode": "ITM-12"}]}
+            "/orders", json={"Items": [{**VALID_ITEM, "ItemCode": value}]}
         )
 
         assert response.status_code == 201
-        assert response.json()["Items"][0]["ItemCode"] == "ITM-012"
+        assert response.json()["Items"][0]["ItemCode"] == value
+        order_id = response.json()["OrderId"]
+        assert client.get(f"/orders/{order_id}").json()["Items"][0]["ItemCode"] == value
 
-    @pytest.mark.parametrize("value", ["MUG", "ABC", "ITM-ABC", "ITEM-001"])
-    def test_invalid_item_code_is_rejected(self, value):
+    def test_item_code_whitespace_is_trimmed(self):
+        response = client.post(
+            "/orders", json={"Items": [{**VALID_ITEM, "ItemCode": "  ABC  "}]}
+        )
+
+        assert response.status_code == 201
+        assert response.json()["Items"][0]["ItemCode"] == "ABC"
+
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_blank_item_code_is_rejected(self, value):
         response = client.post(
             "/orders", json={"Items": [{**VALID_ITEM, "ItemCode": value}]}
         )
 
         assert response.status_code == 422
+
+    def test_duplicate_item_codes_in_one_order_are_accepted(self):
+        response = client.post(
+            "/orders",
+            json={"Items": [VALID_ITEM, {**SECOND_ITEM, "ItemCode": "ITM-001"}]},
+        )
+
+        assert response.status_code == 201
+        assert [item["ItemCode"] for item in response.json()["Items"]] == [
+            "ITM-001",
+            "ITM-001",
+        ]
 
     @pytest.mark.parametrize("dimension", ["Width", "Length", "Depth"])
     @pytest.mark.parametrize("value", [0, -5])

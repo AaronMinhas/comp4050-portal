@@ -176,3 +176,95 @@ def test_store_persists_changes_until_reset():
 
     assert boxes.find_box_type("BOX-XL") is None
     assert boxes.list_box_types() == []
+
+
+def test_missing_maximum_boxes_is_stored_as_no_limit():
+    payload = {key: value for key, value in NEW_BOX.items() if key != "MaximumBoxes"}
+
+    response = client.post("/boxes", json=payload, headers=SUPERVISOR_HEADERS)
+
+    assert response.status_code == 201
+    assert response.json()["MaximumBoxes"] is None
+    assert boxes.find_box_type("BOX-XL").maximum_boxes is None
+
+
+def test_update_can_set_and_remove_a_quantity_limit():
+    created = client.post("/boxes", json=NEW_BOX, headers=SUPERVISOR_HEADERS).json()
+
+    unlimited = client.put(
+        "/boxes/BOX-XL", json=editable(created, MaximumBoxes=None),
+        headers=SUPERVISOR_HEADERS,
+    )
+    assert unlimited.status_code == 200
+    assert unlimited.json()["MaximumBoxes"] is None
+
+    limited = client.put(
+        "/boxes/BOX-XL", json=editable(created, MaximumBoxes=3),
+        headers=SUPERVISOR_HEADERS,
+    )
+    assert limited.json()["MaximumBoxes"] == 3
+
+
+def test_negative_maximum_boxes_is_rejected():
+    response = client.post(
+        "/boxes", json={**NEW_BOX, "MaximumBoxes": -1}, headers=SUPERVISOR_HEADERS
+    )
+
+    assert response.status_code == 422
+    assert boxes.find_box_type("BOX-XL") is None
+
+
+def test_stock_is_not_a_box_field():
+    response = client.post(
+        "/boxes", json={**NEW_BOX, "Stock": 5}, headers=SUPERVISOR_HEADERS
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("headers", [SUPERVISOR_HEADERS, ADMINISTRATOR_HEADERS])
+def test_inventory_managers_can_delete_a_box_type(headers):
+    boxes.add_box_type(BoxType(**NEW_BOX))
+
+    response = client.delete("/boxes/BOX-XL", headers=headers)
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert client.get("/boxes/BOX-XL", headers=USER_HEADERS).status_code == 404
+    assert client.get("/boxes", headers=USER_HEADERS).json() == []
+
+
+def test_user_cannot_delete_a_box_type():
+    boxes.add_box_type(BoxType(**NEW_BOX))
+
+    response = client.delete("/boxes/BOX-XL", headers=USER_HEADERS)
+
+    assert response.status_code == 403
+    assert boxes.find_box_type("BOX-XL") is not None
+
+
+def test_deleting_an_unknown_box_type_is_a_404():
+    response = client.delete("/boxes/UNKNOWN", headers=SUPERVISOR_HEADERS)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Box type not found"
+
+
+def test_deleting_only_removes_the_named_box_type():
+    boxes.add_box_type(BoxType(**NEW_BOX))
+    boxes.add_box_type(BoxType(**{**NEW_BOX, "Reference": "BOX-KEEP"}))
+
+    assert client.delete("/boxes/BOX-XL", headers=SUPERVISOR_HEADERS).status_code == 204
+
+    assert [box.reference for box in boxes.list_box_types()] == ["BOX-KEEP"]
+    assert [box.reference for box in boxes.active_box_types()] == ["BOX-KEEP"]
+
+
+def test_a_deleted_reference_can_be_added_again():
+    boxes.add_box_type(BoxType(**NEW_BOX))
+    assert client.delete("/boxes/BOX-XL", headers=SUPERVISOR_HEADERS).status_code == 204
+
+    response = client.post("/boxes", json=NEW_BOX, headers=SUPERVISOR_HEADERS)
+
+    assert response.status_code == 201
+    assert response.json() == NEW_BOX

@@ -22,6 +22,7 @@ __all__ = [
     "active_box_types",
     "add_box_type",
     "assess_solution_inventory",
+    "delete_box_type",
     "find_box_type",
     "import_box_types",
     "list_box_types",
@@ -53,6 +54,11 @@ def add_box_type(box: BoxType) -> BoxType:
 def update_box_type(reference: str, changes: BoxTypeUpdate) -> BoxType | None:
     with session_scope() as session:
         return box_repository.update_box_type(session, reference, changes)
+
+
+def delete_box_type(reference: str) -> bool:
+    with session_scope() as session:
+        return box_repository.delete_box_type(session, reference)
 
 
 def import_box_types(imported: list[BoxType]) -> list[BoxType]:

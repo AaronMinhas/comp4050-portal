@@ -264,6 +264,37 @@ def test_solving_does_not_change_inventory_quantities():
     assert after == before
 
 
+def test_boxes_with_no_quantity_limit_are_supplied_to_the_solver():
+    update_inventory("BOX-S", MaximumBoxes=None)
+    update_inventory("BOX-M", MaximumBoxes=0)
+    update_inventory("BOX-L", Active=False, MaximumBoxes=None)
+
+    assert [
+        (box.reference, box.maximum_boxes) for box in active_box_types()
+    ] == [("BOX-S", None)]
+
+
+def test_solver_request_carries_maximum_boxes(monkeypatch):
+    update_inventory("BOX-S", MaximumBoxes=5)
+    update_inventory("BOX-M", MaximumBoxes=None)
+    update_inventory("BOX-L", MaximumBoxes=0)
+    order_id = create_order([an_item()])
+    submit_order(order_id)
+    captured_request = None
+
+    def capture_solver(request):
+        nonlocal captured_request
+        captured_request = deepcopy(request)
+        return {"order_id": order_id, "cartons": [], "rejects": []}
+
+    monkeypatch.setattr("app.routes.solve.solve_request", capture_solver)
+
+    assert solve(order_id).status_code == 200
+    assert [
+        (carton["sku"], carton["maximum_boxes"]) for carton in captured_request["cartons"]
+    ] == [("BOX-S", 5), ("BOX-M", None)]
+
+
 def test_draft_order_cannot_be_solved():
     order_id = create_order([an_item()])
 

@@ -144,6 +144,10 @@ export function importBoxes(boxes) {
   return request('/boxes/import', asJson({ Boxes: boxes }));
 }
 
+export function deleteBox(reference) {
+  return request(`/boxes/${encodeURIComponent(reference)}`, { method: 'DELETE' });
+}
+
 export function getCurrentProfile(options) {
   return request('/auth/me', options);
 }

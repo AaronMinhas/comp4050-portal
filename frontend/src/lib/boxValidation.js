@@ -1,3 +1,9 @@
+// Box Inventory validation and import reconciliation.
+//
+// MaximumBoxes is the quantity of a box type available to use. It is optional:
+// missing, null or a blank input means no quantity limit, and an explicit 0
+// means none are available. Finalising an order subtracts from a set quantity.
+
 const KNOWN_BOX_FIELDS = new Set([
   'Reference',
   'Width',
@@ -12,10 +18,16 @@ const KNOWN_BOX_FIELDS = new Set([
 const POSITIVE_FIELDS = ['Width', 'Length', 'Depth'];
 const OPTIONAL_POSITIVE_FIELDS = ['MaxWeight', 'BoxWeight'];
 
-export function validateBoxFields(
-  raw,
-  { label = 'Box', allowMissingMaximumBoxes = false } = {}
-) {
+export const QUANTITY_OPERATIONS = Object.freeze({ ADD: 'ADD', REPLACE: 'REPLACE' });
+
+const isBlank = (value) => value === undefined || value === null || value === '';
+
+function isWholeNumber(value) {
+  const number = Number(value);
+  return !isBlank(value) && Number.isInteger(number) && number >= 0;
+}
+
+export function validateBoxFields(raw, { label = 'Box' } = {}) {
   const errors = [];
   const prefix = `${label}: `;
 
@@ -35,7 +47,7 @@ export function validateBoxFields(
   for (const field of POSITIVE_FIELDS) {
     const value = raw[field];
     const number = Number(value);
-    if (value === undefined || value === null || value === '' || !Number.isFinite(number)) {
+    if (isBlank(value) || !Number.isFinite(number)) {
       errors.push(`${prefix}"${field}" is required and must be a number.`);
     } else if (number <= 0) {
       errors.push(`${prefix}"${field}" must be greater than 0.`);
@@ -44,53 +56,46 @@ export function validateBoxFields(
 
   for (const field of OPTIONAL_POSITIVE_FIELDS) {
     const value = raw[field];
-    if (value === undefined || value === null || value === '') continue;
+    if (isBlank(value)) continue;
     const number = Number(value);
     if (!Number.isFinite(number) || number <= 0) {
       errors.push(`${prefix}"${field}" must be greater than 0 when supplied.`);
     }
   }
 
-  if (
-    raw.MaximumBoxes === undefined ||
-    raw.MaximumBoxes === null ||
-    raw.MaximumBoxes === ''
-  ) {
-    if (!allowMissingMaximumBoxes) {
-      errors.push(`${prefix}"MaximumBoxes" is required and must be a whole number.`);
-    }
-  } else {
-    const quantity = Number(raw.MaximumBoxes);
-    if (!Number.isInteger(quantity) || quantity < 0) {
-      errors.push(`${prefix}"MaximumBoxes" must be a whole number of 0 or more.`);
-    }
+  if (!isBlank(raw.MaximumBoxes) && !isWholeNumber(raw.MaximumBoxes)) {
+    errors.push(`${prefix}"MaximumBoxes" must be a whole number of 0 or more when supplied.`);
   }
 
-  if (typeof raw.Active !== 'boolean') {
-    errors.push(`${prefix}"Active" is required and must be true or false.`);
+  if (raw.Active !== undefined && typeof raw.Active !== 'boolean') {
+    errors.push(`${prefix}"Active" must be true or false when supplied.`);
   }
 
   return errors;
 }
 
+/** Missing, null or blank means no quantity limit. An explicit 0 stays 0. */
+export function normaliseMaximumBoxes(value) {
+  return isBlank(value) ? null : Number(value);
+}
+
+export function formatMaximumBoxes(value) {
+  const maximum = normaliseMaximumBoxes(value);
+  return maximum === null ? 'No limit' : maximum;
+}
+
 export function normaliseBox(raw) {
-  const optionalNumber = (value) =>
-    value === undefined || value === null || value === '' ? null : Number(value);
+  const optionalNumber = (value) => (isBlank(value) ? null : Number(value));
 
   return {
-    Reference: raw.Reference.trim(),
+    Reference: String(raw.Reference).trim(),
     Width: Number(raw.Width),
     Length: Number(raw.Length),
     Depth: Number(raw.Depth),
     MaxWeight: optionalNumber(raw.MaxWeight),
     BoxWeight: optionalNumber(raw.BoxWeight),
-    Active: raw.Active,
-    // The established project fixture predates required inventory quantities.
-    // Missing quantity is proposed visibly as out-of-stock during review.
-    MaximumBoxes:
-      raw.MaximumBoxes === undefined || raw.MaximumBoxes === null || raw.MaximumBoxes === ''
-        ? 0
-        : Number(raw.MaximumBoxes),
+    Active: raw.Active === undefined ? true : raw.Active,
+    MaximumBoxes: normaliseMaximumBoxes(raw.MaximumBoxes),
   };
 }
 
@@ -128,7 +133,6 @@ export function parseBoxesJson(jsonText) {
   const errors = candidateBoxes.flatMap((box, index) =>
     validateBoxFields(box, {
       label: `Box ${index + 1}${box?.Reference ? ` (${box.Reference})` : ''}`,
-      allowMissingMaximumBoxes: true,
     })
   );
   if (errors.length > 0) return { boxes: null, errors };
@@ -148,28 +152,80 @@ export function parseBoxesJson(jsonText) {
   return { boxes, errors: [] };
 }
 
+export function calculateResultingQuantity(currentQuantity, importedQuantity, operation) {
+  if (!isWholeNumber(importedQuantity) || !operation) return '';
+  const imported = Number(importedQuantity);
+  return operation === QUANTITY_OPERATIONS.ADD
+    ? Number(currentQuantity) + imported
+    : imported;
+}
+
+/**
+ * Build review records. Box settings come from the file. Add or Replace is only
+ * needed when both the file and the existing box have a quantity; otherwise the
+ * file's value (a number, or no limit when omitted) is used as-is.
+ */
+export function createImportRecords(importedBoxes, inventory) {
+  const currentByReference = new Map(inventory.map((box) => [box.Reference, box]));
+  return importedBoxes.map((imported, index) => {
+    const current = currentByReference.get(imported.Reference) ?? null;
+    const needsOperation = current !== null
+      && current.MaximumBoxes != null
+      && imported.MaximumBoxes != null;
+    return {
+      id: `${imported.Reference}-${index}`,
+      classification: current ? 'EXISTING' : 'NEW',
+      current,
+      imported,
+      needsOperation,
+      importedQuantity: needsOperation ? imported.MaximumBoxes : '',
+      quantityOperation: null,
+      result: {
+        ...imported,
+        MaximumBoxes: needsOperation ? '' : imported.MaximumBoxes,
+      },
+    };
+  });
+}
+
+export function applyQuantityChange(record, changes) {
+  const importedQuantity = Object.hasOwn(changes, 'importedQuantity')
+    ? changes.importedQuantity
+    : record.importedQuantity;
+  const quantityOperation = Object.hasOwn(changes, 'quantityOperation')
+    ? changes.quantityOperation
+    : record.quantityOperation;
+  return {
+    ...record,
+    importedQuantity,
+    quantityOperation,
+    result: {
+      ...record.result,
+      MaximumBoxes: calculateResultingQuantity(
+        record.current.MaximumBoxes,
+        importedQuantity,
+        quantityOperation
+      ),
+    },
+  };
+}
+
 export function validateImportResults(records, inventory) {
   if (records.length === 0) return ['Keep at least one box record before confirming.'];
 
   const errors = records.flatMap((record, index) => {
-    const resultForFieldValidation = record.classification === 'EXISTING'
-      ? { ...record.result, MaximumBoxes: 0 }
-      : record.result;
-    const recordErrors = validateBoxFields(resultForFieldValidation, {
-      label: `Result ${index + 1}`,
-    });
-    if (record.classification === 'EXISTING') {
-      const importedStock = Number(record.importedStock);
-      if (!Number.isInteger(importedStock) || importedStock < 0) {
-        recordErrors.push(
-          `${record.result.Reference}: imported stock must be a whole number of 0 or more.`
-        );
-      }
-      if (!record.stockOperation) {
-        recordErrors.push(
-          `${record.result.Reference}: choose Replace existing stock or Add to existing stock.`
-        );
-      }
+    const label = `Result ${index + 1}`;
+    if (!record.needsOperation) return validateBoxFields(record.result, { label });
+
+    const name = String(record.result.Reference ?? '').trim() || label;
+    const recordErrors = validateBoxFields({ ...record.result, MaximumBoxes: null }, { label });
+    if (!isWholeNumber(record.importedQuantity)) {
+      recordErrors.push(`${name}: imported quantity must be a whole number of 0 or more.`);
+    }
+    if (!record.quantityOperation) {
+      recordErrors.push(
+        `${name}: choose Replace existing quantity or Add to existing quantity.`
+      );
     }
     return recordErrors;
   });

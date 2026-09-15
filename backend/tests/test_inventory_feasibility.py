@@ -162,6 +162,30 @@ class TestSufficientInventory:
         assert finalise(order_id).status_code == 200
 
 
+class TestUnlimitedInventory:
+    def test_no_quantity_limit_is_always_sufficient(self):
+        add_inventory({**MED, "MaximumBoxes": None})
+        order_id = optimised_order(solution_document(*(["MED"] * 50)))
+
+        result = feasibility(order_id)
+
+        assert result["Sufficient"] is True
+        assert requirement(result, "MED") == {
+            "Reference": "MED",
+            "Required": 50,
+            "Available": None,
+            "Active": True,
+            "Exists": True,
+            "Sufficient": True,
+        }
+
+    def test_an_inactive_unlimited_box_is_still_insufficient(self):
+        add_inventory({**MED, "MaximumBoxes": None, "Active": False})
+        order_id = optimised_order(solution_document("MED"))
+
+        assert feasibility(order_id)["Sufficient"] is False
+
+
 class TestInsufficientInventory:
     def test_too_little_stock_reports_required_and_available(self):
         add_inventory({**MED, "MaximumBoxes": 1})

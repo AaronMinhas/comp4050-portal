@@ -49,14 +49,27 @@ frontend is built and deployed.
 | Order creation page | `src/pages/OrderCreatePage.jsx` |
 | Item entry components | `src/components/orders/ItemEntryForm.jsx`, `ItemsTable.jsx` |
 | Order list / details | `src/pages/OrdersListPage.jsx`, `OrderSummaryPage.jsx` |
-| Box Inventory and reviewed JSON import | `src/pages/BoxInventoryPage.jsx`, `src/components/boxes/BoxJsonImport.jsx` |
+| Box Inventory (create, edit, delete) and reviewed JSON import | `src/pages/BoxInventoryPage.jsx`, `src/components/boxes/BoxJsonImport.jsx`, `src/lib/boxValidation.js` |
 | Role-based user management | `src/pages/UserManagementPage.jsx` |
 | Pack and visualise | `OrderSummaryPage.jsx` (calls `POST /orders/{id}/solve`, embeds FitVisualizer) |
+| Packing details with box group per box and item | `src/components/orders/PackingDetails.jsx`, `src/lib/boxGroups.js` |
 | Hazard flag in UI | `src/components/common/HazardBadge.jsx` (tag in tables, ribbon on the order summary card) + checkbox in item entry |
 
 Item fields match the Portal API: `ItemCode`, `ItemReference`, `Width`,
 `Length`, `Depth` (mm), `Weight` (kg), `BoxGroup` (optional), `Quantity`,
-`Hazardous`. The backend assigns `OrderId`.
+`Hazardous`. `ItemCode` accepts any non-blank text. The backend assigns `OrderId`.
+
+Box fields: `Reference`, `Width`, `Length`, `Depth`, `MaxWeight`, `BoxWeight`,
+`Active` (defaults to true) and `MaximumBoxes` (available quantity, where
+omitted means no limit).
+
+## Testing
+
+Unit tests for the validation and box group logic in `src/lib` run with Vitest:
+
+```bash
+npm test
+```
 
 Supabase access tokens are sent only to the Portal API as bearer tokens. Portal
 roles and account status come from the backend's `portal_users` table, not from

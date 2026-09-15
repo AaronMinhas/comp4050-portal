@@ -2,6 +2,10 @@ import React, { useMemo, useRef, useState } from 'react';
 import Button from '../common/Button.jsx';
 import Field, { inputClass } from '../common/Field.jsx';
 import {
+  QUANTITY_OPERATIONS,
+  applyQuantityChange,
+  createImportRecords,
+  formatMaximumBoxes,
   normaliseBox,
   parseBoxesJson,
   validateImportResults,
@@ -33,25 +37,8 @@ export default function BoxJsonImport({ inventory, onCancel, onConfirm }) {
       setErrors(parsed.errors);
       return;
     }
-    const currentByReference = new Map(
-      inventory.map((box) => [box.Reference, box])
-    );
     setErrors([]);
-    setRecords(parsed.boxes.map((imported, index) => {
-      const current = currentByReference.get(imported.Reference) ?? null;
-      return {
-        id: `${imported.Reference}-${index}`,
-        classification: current ? 'EXISTING' : 'NEW',
-        current,
-        imported,
-        importedStock: imported.MaximumBoxes,
-        stockOperation: null,
-        result: {
-          ...imported,
-          MaximumBoxes: current ? '' : imported.MaximumBoxes,
-        },
-      };
-    }));
+    setRecords(createImportRecords(parsed.boxes, inventory));
   };
 
   const handleFileChange = async (event) => {
@@ -120,7 +107,8 @@ export default function BoxJsonImport({ inventory, onCancel, onConfirm }) {
         />
       </Field>
       <p className="mt-1 text-xs text-ink-300">
-        Accepts a top-level array or {'{ "Boxes": [...] }'}. Missing MaximumBoxes is reviewed as 0.
+        Accepts a top-level array or {'{ "Boxes": [...] }'}. MaximumBoxes is the quantity
+        available to use; omit it for no limit.
       </p>
 
       <ImportErrors errors={errors} />
@@ -154,29 +142,10 @@ function BoxImportReview({ initialRecords, inventory, onCancel, onConfirm }) {
     setConfirmError('');
   };
 
-  const updateStock = (id, changes) => {
-    setRecords((current) => current.map((record) => {
-      if (record.id !== id) return record;
-      const importedStock = Object.hasOwn(changes, 'importedStock')
-        ? changes.importedStock
-        : record.importedStock;
-      const stockOperation = Object.hasOwn(changes, 'stockOperation')
-        ? changes.stockOperation
-        : record.stockOperation;
-      return {
-        ...record,
-        importedStock,
-        stockOperation,
-        result: {
-          ...record.result,
-          MaximumBoxes: calculateResultingStock(
-            record.current.MaximumBoxes,
-            importedStock,
-            stockOperation
-          ),
-        },
-      };
-    }));
+  const updateQuantity = (id, changes) => {
+    setRecords((current) => current.map((record) =>
+      record.id === id ? applyQuantityChange(record, changes) : record
+    ));
     setConfirmError('');
   };
 
@@ -221,16 +190,21 @@ function BoxImportReview({ initialRecords, inventory, onCancel, onConfirm }) {
               <Button variant="danger" onClick={() => remove(record.id)}>Remove</Button>
             </div>
 
-            {record.classification === 'EXISTING' && (
-              <StockReconciliation
+            {record.needsOperation ? (
+              <QuantityReconciliation
                 record={record}
-                onImportedStockChange={(value) =>
-                  updateStock(record.id, { importedStock: value })
+                onImportedQuantityChange={(value) =>
+                  updateQuantity(record.id, { importedQuantity: value })
                 }
-                onOperationChange={(stockOperation) =>
-                  updateStock(record.id, { stockOperation })
+                onOperationChange={(quantityOperation) =>
+                  updateQuantity(record.id, { quantityOperation })
                 }
               />
+            ) : record.current && (
+              <p className="mt-3 text-xs text-ink-500">
+                Available quantity: {formatMaximumBoxes(record.current.MaximumBoxes)} →{' '}
+                {formatMaximumBoxes(record.result.MaximumBoxes)}. Taken from the imported file.
+              </p>
             )}
 
             <div className={`mt-4 grid gap-4 ${record.current ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
@@ -239,7 +213,7 @@ function BoxImportReview({ initialRecords, inventory, onCancel, onConfirm }) {
               <ResultFields
                 box={record.result}
                 referenceReadOnly={record.classification === 'EXISTING'}
-                showStock={record.classification === 'NEW'}
+                showQuantity={!record.needsOperation}
                 onChange={(field, value) => updateResult(record.id, field, value)}
               />
             </div>
@@ -270,6 +244,7 @@ function Snapshot({ title, box }) {
     ['Max Weight', box.MaxWeight == null ? '—' : `${box.MaxWeight} kg`],
     ['Box Weight', box.BoxWeight == null ? '—' : `${box.BoxWeight} kg`],
     ['Active', box.Active ? 'Yes' : 'No'],
+    ['Available', formatMaximumBoxes(box.MaximumBoxes)],
   ];
   return (
     <section className="rounded-sm bg-ink-50 p-3">
@@ -286,58 +261,54 @@ function Snapshot({ title, box }) {
   );
 }
 
-function StockReconciliation({ record, onImportedStockChange, onOperationChange }) {
-  const resultingStock = record.result.MaximumBoxes;
+function QuantityReconciliation({ record, onImportedQuantityChange, onOperationChange }) {
+  const resultingQuantity = record.result.MaximumBoxes;
   return (
     <section className="mt-4 rounded-sm border border-amber-200 bg-amber-50/40 p-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-        Stock reconciliation
+        Quantity reconciliation
       </h3>
       <div className="mt-3 grid gap-4 md:grid-cols-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-ink-400">Current stock</p>
+          <p className="text-xs uppercase tracking-wide text-ink-400">Current quantity</p>
           <p className="mt-1 font-mono text-lg font-semibold text-ink-700">
             {record.current.MaximumBoxes}
           </p>
         </div>
         <ResultInput
-          label="Imported stock"
+          label="Imported quantity"
           type="number"
           min="0"
           step="1"
-          value={record.importedStock}
-          onChange={onImportedStockChange}
+          value={record.importedQuantity}
+          onChange={onImportedQuantityChange}
         />
         <fieldset>
           <legend className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-            Stock update
+            Quantity update
           </legend>
-          <label className="mt-2 flex items-center gap-2 text-sm text-ink-600">
-            <input
-              type="radio"
-              name={`stock-operation-${record.id}`}
-              checked={record.stockOperation === 'REPLACE'}
-              onChange={() => onOperationChange('REPLACE')}
-            />
-            Replace existing stock
-          </label>
-          <label className="mt-2 flex items-center gap-2 text-sm text-ink-600">
-            <input
-              type="radio"
-              name={`stock-operation-${record.id}`}
-              checked={record.stockOperation === 'ADD'}
-              onChange={() => onOperationChange('ADD')}
-            />
-            Add to existing stock
-          </label>
+          <QuantityOperationOption
+            record={record}
+            operation={QUANTITY_OPERATIONS.REPLACE}
+            label="Replace existing quantity"
+            description="Replaces the existing quantity and updates box settings from the imported file."
+            onOperationChange={onOperationChange}
+          />
+          <QuantityOperationOption
+            record={record}
+            operation={QUANTITY_OPERATIONS.ADD}
+            label="Add to existing quantity"
+            description="Adds the imported quantity to the existing quantity. Box settings are updated from the imported file."
+            onOperationChange={onOperationChange}
+          />
         </fieldset>
         <div>
-          <p className="text-xs uppercase tracking-wide text-ink-400">Resulting stock</p>
+          <p className="text-xs uppercase tracking-wide text-ink-400">Resulting quantity</p>
           <output
-            aria-label="Resulting stock"
+            aria-label="Resulting quantity"
             className="mt-1 block font-mono text-lg font-semibold text-ink-700"
           >
-            {resultingStock === '' ? 'Select an operation' : resultingStock}
+            {resultingQuantity === '' ? 'Select an operation' : resultingQuantity}
           </output>
         </div>
       </div>
@@ -345,14 +316,32 @@ function StockReconciliation({ record, onImportedStockChange, onOperationChange 
   );
 }
 
-function ResultFields({ box, referenceReadOnly, showStock, onChange }) {
+function QuantityOperationOption({ record, operation, label, description, onOperationChange }) {
+  return (
+    <label className="mt-2 flex items-start gap-2 text-sm text-ink-600">
+      <input
+        type="radio"
+        className="mt-1"
+        name={`quantity-operation-${record.id}`}
+        checked={record.quantityOperation === operation}
+        onChange={() => onOperationChange(operation)}
+      />
+      <span>
+        {label}
+        <span className="block text-xs text-ink-400">{description}</span>
+      </span>
+    </label>
+  );
+}
+
+function ResultFields({ box, referenceReadOnly, showQuantity, onChange }) {
   return (
     <section className="rounded-sm border border-brand-100 bg-brand-50/30 p-3">
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-brand-600">Result</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         <ResultInput label="Reference" value={box.Reference} disabled={referenceReadOnly} onChange={(value) => onChange('Reference', value)} />
-        {showStock && (
-          <ResultInput label="Initial stock" type="number" min="0" step="1" value={box.MaximumBoxes} onChange={(value) => onChange('MaximumBoxes', value)} />
+        {showQuantity && (
+          <ResultInput label="Available quantity" type="number" min="0" step="1" placeholder="No limit" value={box.MaximumBoxes ?? ''} onChange={(value) => onChange('MaximumBoxes', value)} />
         )}
         <ResultInput label="Width (mm)" type="number" min="0.01" value={box.Width} onChange={(value) => onChange('Width', value)} />
         <ResultInput label="Length (mm)" type="number" min="0.01" value={box.Length} onChange={(value) => onChange('Length', value)} />
@@ -366,12 +355,6 @@ function ResultFields({ box, referenceReadOnly, showStock, onChange }) {
       </div>
     </section>
   );
-}
-
-function calculateResultingStock(currentStock, importedStock, stockOperation) {
-  const imported = Number(importedStock);
-  if (!Number.isInteger(imported) || imported < 0 || !stockOperation) return '';
-  return stockOperation === 'ADD' ? currentStock + imported : imported;
 }
 
 function ResultInput({ label, value, onChange, ...inputProps }) {

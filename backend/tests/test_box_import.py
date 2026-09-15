@@ -168,3 +168,44 @@ def test_empty_confirmed_import_is_rejected():
 
     assert response.status_code == 422
     assert boxes.list_box_types() == []
+
+
+def test_boxes_without_maximum_boxes_import_with_no_limit():
+    client_box = {key: value for key, value in BOX_S.items() if key != "MaximumBoxes"}
+
+    response = import_boxes([client_box])
+
+    assert response.status_code == 200
+    assert response.json()["Boxes"][0]["MaximumBoxes"] is None
+    assert boxes.find_box_type("BOX-S").maximum_boxes is None
+    assert [box.reference for box in boxes.active_box_types()] == ["BOX-S"]
+
+
+def test_import_can_remove_an_existing_quantity_limit():
+    boxes.add_box_type(BoxType(**BOX_S))
+
+    response = import_boxes([{**BOX_S, "MaximumBoxes": None}])
+
+    assert response.status_code == 200
+    assert boxes.find_box_type("BOX-S").maximum_boxes is None
+
+
+def test_import_without_active_defaults_to_true():
+    imported = {key: value for key, value in BOX_XL.items() if key != "Active"}
+
+    assert import_boxes([imported]).status_code == 200
+
+    assert boxes.find_box_type("BOX-XL").active is True
+
+
+def test_import_keeps_explicit_active_false():
+    assert import_boxes([{**BOX_XL, "Active": False}]).status_code == 200
+
+    assert boxes.find_box_type("BOX-XL").active is False
+
+
+def test_import_rejects_a_stock_field():
+    response = import_boxes([{**BOX_S, "Stock": 5}])
+
+    assert response.status_code == 422
+    assert boxes.list_box_types() == []

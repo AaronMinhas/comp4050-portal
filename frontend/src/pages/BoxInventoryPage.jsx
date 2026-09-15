@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { createBox, importBoxes, listBoxes, updateBox } from '../api/client.js';
+import { createBox, deleteBox, importBoxes, listBoxes, updateBox } from '../api/client.js';
 import Button from '../components/common/Button.jsx';
 import Field, { inputClass } from '../components/common/Field.jsx';
 import BoxJsonImport from '../components/boxes/BoxJsonImport.jsx';
 import { useApp } from '../context/AppContext.jsx';
+import { formatMaximumBoxes, normaliseMaximumBoxes } from '../lib/boxValidation.js';
 import { canManageBoxInventory } from '../lib/roles.js';
 
 const EMPTY_BOX = {
@@ -13,7 +14,7 @@ const EMPTY_BOX = {
   Depth: '',
   MaxWeight: '',
   BoxWeight: '',
-  MaximumBoxes: 0,
+  MaximumBoxes: '',
   Active: true,
 };
 
@@ -52,6 +53,14 @@ export default function BoxInventoryPage() {
       await createBox(payload);
     }
     setEditing(null);
+    await load();
+  };
+
+  const remove = async (reference) => {
+    setSuccess('');
+    await deleteBox(reference);
+    setEditing(null);
+    setSuccess(`Deleted box type ${reference}.`);
     await load();
   };
 
@@ -150,7 +159,7 @@ export default function BoxInventoryPage() {
                     {box.BoxWeight == null ? '—' : `${box.BoxWeight} kg`}
                   </td>
                   <td className="px-4 py-3 font-mono text-ink-700">
-                    {box.MaximumBoxes}
+                    {formatMaximumBoxes(box.MaximumBoxes)}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge active={box.Active} />
@@ -188,6 +197,7 @@ export default function BoxInventoryPage() {
           isEditing={Boolean(editing.Reference)}
           onCancel={() => setEditing(null)}
           onSave={save}
+          onDelete={editing.Reference ? () => remove(editing.Reference) : undefined}
         />
       )}
 
@@ -203,10 +213,27 @@ export default function BoxInventoryPage() {
   );
 }
 
-function BoxFormModal({ initialBox, isEditing, onCancel, onSave }) {
+function BoxFormModal({ initialBox, isEditing, onCancel, onSave, onDelete }) {
   const [form, setForm] = useState({ ...initialBox });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const busy = saving || deleting;
+
+  const remove = async () => {
+    const confirmed = window.confirm(
+      `Permanently delete box type ${initialBox.Reference}? Deactivate keeps it out of packing without deleting it.`
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await onDelete();
+    } catch (deleteError) {
+      setError(deleteError);
+      setDeleting(false);
+    }
+  };
 
   const update = (field) => (event) => {
     const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
@@ -246,7 +273,7 @@ function BoxFormModal({ initialBox, isEditing, onCancel, onSave }) {
               onChange={update('Reference')}
             />
           </Field>
-          <NumberField label="Available quantity *" field="MaximumBoxes" min="0" step="1" form={form} update={update} />
+          <NumberField label="Available quantity" field="MaximumBoxes" min="0" step="1" form={form} update={update} optional placeholder="No limit" hint="Leave blank for no limit. Reduced when orders are finalised." />
           <NumberField label="Width (mm) *" field="Width" min="0.01" form={form} update={update} />
           <NumberField label="Length (mm) *" field="Length" min="0.01" form={form} update={update} />
           <NumberField label="Depth (mm) *" field="Depth" min="0.01" form={form} update={update} />
@@ -262,23 +289,33 @@ function BoxFormModal({ initialBox, isEditing, onCancel, onSave }) {
             {error.message}
           </p>
         )}
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
-          <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save box type'}</Button>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            {isEditing && onDelete && (
+              <Button variant="danger" onClick={remove} disabled={busy}>
+                {deleting ? 'Deleting...' : 'Delete box type'}
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
+            <Button type="submit" disabled={busy}>{saving ? 'Saving...' : 'Save box type'}</Button>
+          </div>
         </div>
       </form>
     </div>
   );
 }
 
-function NumberField({ label, field, min, step = 'any', form, update, optional = false }) {
+function NumberField({ label, field, min, step = 'any', form, update, optional = false, hint, placeholder }) {
   return (
-    <Field label={label}>
+    <Field label={label} hint={hint}>
       <input
         type="number"
         step={step}
         min={min}
         required={!optional}
+        placeholder={placeholder}
         className={inputClass()}
         value={form[field] ?? ''}
         onChange={update(field)}
@@ -317,7 +354,7 @@ function toPayload(form) {
     Depth: Number(form.Depth),
     MaxWeight: optionalNumber(form.MaxWeight),
     BoxWeight: optionalNumber(form.BoxWeight),
-    MaximumBoxes: Number(form.MaximumBoxes),
+    MaximumBoxes: normaliseMaximumBoxes(form.MaximumBoxes),
     Active: form.Active,
   };
 }

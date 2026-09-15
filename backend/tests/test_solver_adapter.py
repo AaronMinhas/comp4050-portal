@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.models import BoxType, Item, StoredOrder
 from app.solver_adapter import HAZARDOUS_TAG, box_to_contract, item_to_contract, to_solver_request
 from tests.box_fixtures import DEFAULT_BOX_TYPES
@@ -120,4 +122,34 @@ def test_portal_only_fields_do_not_cross_the_boundary():
     assert "Status" not in request
     assert "CreatedAt" not in request
     assert "reference" not in request
-    assert all("maximum_boxes" not in carton for carton in request["cartons"])
+    assert all("active" not in carton for carton in request["cartons"])
+
+
+def a_box(**overrides) -> BoxType:
+    payload = {"Reference": "BOX-S", "Width": 220, "Length": 160, "Depth": 120}
+    payload.update(overrides)
+    return BoxType(**payload)
+
+
+def test_carton_contains_exactly_the_solver_fields():
+    mapped = box_to_contract(a_box(MaxWeight=15, BoxWeight=0.5, MaximumBoxes=4))
+
+    assert mapped == {
+        "sku": "BOX-S",
+        "inner_dims": [220, 160, 120],
+        "tare_mass": 500,
+        "max_contents_mass": 15000,
+        "maximum_boxes": 4,
+    }
+
+
+@pytest.mark.parametrize("overrides", [{}, {"MaximumBoxes": None}])
+def test_no_maximum_boxes_is_sent_as_no_limit(overrides):
+    assert box_to_contract(a_box(**overrides))["maximum_boxes"] is None
+
+
+def test_zero_maximum_boxes_is_sent_as_zero():
+    mapped = box_to_contract(a_box(MaximumBoxes=0))
+
+    assert mapped["maximum_boxes"] == 0
+    assert mapped["maximum_boxes"] is not None

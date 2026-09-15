@@ -209,6 +209,43 @@ def test_all_inventory_problems_are_reported_together():
     assert boxes.find_box_type("MED").maximum_boxes == 5
 
 
+def test_boxes_with_no_quantity_limit_are_never_consumed():
+    add_inventory({**MED, "MaximumBoxes": None}, SML)
+    order_id = create_order(document=solution("MED", "MED", "MED", "SML"))
+
+    assert finalise(order_id).status_code == 200
+
+    assert boxes.find_box_type("MED").maximum_boxes is None
+    assert boxes.find_box_type("SML").maximum_boxes == 9
+    assert store.find_order(order_id).status == "FINAL"
+
+
+def test_deleting_a_box_type_blocks_finalising_a_solution_that_uses_it():
+    add_inventory(MED)
+    document = solution("MED", "MED")
+    order_id = create_order(document=document)
+
+    assert client.delete("/boxes/MED", headers=SUPERVISOR_HEADERS).status_code == 204
+    response = finalise(order_id)
+
+    assert response.status_code == 409
+    assert "2 MED boxes, but that box type is missing" in response.json()["detail"]
+    assert store.find_order(order_id).status == "OPTIMISED"
+    assert store.find_solution(order_id) == document
+
+
+def test_a_final_order_keeps_its_solution_after_its_box_type_is_deleted():
+    add_inventory(MED)
+    document = solution("MED")
+    order_id = create_order(document=document)
+    assert finalise(order_id).status_code == 200
+
+    assert client.delete("/boxes/MED", headers=SUPERVISOR_HEADERS).status_code == 204
+
+    assert store.find_order(order_id).status == "FINAL"
+    assert client.get(f"/orders/{order_id}/solution").json() == document
+
+
 def test_final_order_cannot_be_edited_and_solution_is_preserved():
     add_inventory(MED)
     document = solution("MED")

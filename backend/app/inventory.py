@@ -25,13 +25,15 @@ def assess_requirement(
             Exists=False,
             Sufficient=False,
         )
+    # No MaximumBoxes means no quantity limit, which is always enough.
+    unlimited = box.maximum_boxes is None
     return BoxRequirement(
         Reference=reference,
         Required=required,
         Available=box.maximum_boxes,
         Active=box.active,
         Exists=True,
-        Sufficient=box.active and box.maximum_boxes >= required,
+        Sufficient=box.active and (unlimited or box.maximum_boxes >= required),
     )
 
 

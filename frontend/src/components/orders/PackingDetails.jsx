@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { buildBoxGroupLookup, cartonBoxGroups, itemBoxGroups } from '../../lib/boxGroups.js';
 
-export default function PackingDetails({ solution }) {
+export default function PackingDetails({ solution, items }) {
   const cartons = solution?.cartons ?? [];
+  const boxGroupLookup = useMemo(() => buildBoxGroupLookup(items), [items]);
 
   return (
     <details className="mt-5 rounded-sm border border-ink-100 bg-ink-50/40">
@@ -15,7 +17,13 @@ export default function PackingDetails({ solution }) {
         {cartons.length === 0 ? (
           <p className="text-sm text-ink-400">No boxes were packed.</p>
         ) : cartons.map((carton, index) => (
-          <PackedBox key={carton.carton_id} carton={carton} number={index + 1} />
+          <PackedBox
+            key={carton.carton_id}
+            carton={carton}
+            number={index + 1}
+            boxGroups={cartonBoxGroups(boxGroupLookup, carton)}
+            boxGroupLookup={boxGroupLookup}
+          />
         ))}
 
       </div>
@@ -51,7 +59,7 @@ export function UnpackedItems({ rejects }) {
   );
 }
 
-function PackedBox({ carton, number }) {
+function PackedBox({ carton, number, boxGroups, boxGroupLookup }) {
   const items = groupPlacements(carton.placements ?? []);
   return (
     <article className="rounded-sm border border-ink-100 bg-white p-4">
@@ -62,7 +70,8 @@ function PackedBox({ carton, number }) {
           </h4>
           <p className="mt-1 font-mono text-xs text-ink-300">{carton.carton_id}</p>
         </div>
-        <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs sm:grid-cols-5">
+          <BoxFact label="Box group" value={boxGroups.length ? boxGroups.join(', ') : '—'} />
           <BoxFact label="Inner dimensions" value={`${carton.inner_dims.join(' × ')} mm`} />
           <BoxFact label="Items" value={carton.placements.length} />
           <BoxFact label="Contents weight" value={`${formatKg(carton.contents_mass)} kg`} />
@@ -77,6 +86,15 @@ function PackedBox({ carton, number }) {
               <p>
                 <span className="font-mono font-semibold text-ink-700">{item.itemRef}</span>
                 {item.label && <span className="ml-2 text-ink-400">{item.label}</span>}
+                {itemBoxGroups(boxGroupLookup, item.itemRef, item.label).map((group) => (
+                  <span
+                    key={group}
+                    title="Box group"
+                    className="ml-2 inline-block rounded-sm border border-ink-200 bg-white px-1.5 py-0.5 align-middle font-mono text-[11px] font-semibold uppercase tracking-wide text-ink-600"
+                  >
+                    {group}
+                  </span>
+                ))}
               </p>
               <span className="font-mono font-semibold text-ink-600">× {item.placements.length}</span>
             </div>
