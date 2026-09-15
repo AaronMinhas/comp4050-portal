@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.models import BoxType, Item, StoredOrder
-from app.solver_adapter import HAZARDOUS_TAG, box_to_contract, item_to_contract, to_solver_request
+from app.solver_adapter import box_to_contract, item_to_contract, to_solver_request
 from tests.box_fixtures import DEFAULT_BOX_TYPES
 
 
@@ -55,14 +55,17 @@ def test_box_group_becomes_dg_class():
     assert item_to_contract(an_item(BoxGroup="DG-8"))["dg_class"] == "DG-8"
 
 
-def test_hazardous_becomes_a_tag_not_a_packing_rule():
-    flagged = item_to_contract(an_item(Hazardous=True, BoxGroup="DG-8"))
-    plain = item_to_contract(an_item())
+def test_item_contract_carries_box_group_and_no_tags():
+    mapped = item_to_contract(an_item(BoxGroup="CORROSIVE", Quantity=8))
 
-    assert flagged["tags"] == [HAZARDOUS_TAG]
-    assert flagged["dg_class"] == "DG-8"
-    assert plain["tags"] == []
-    assert plain["dg_class"] is None
+    assert mapped == {
+        "item_ref": "ITM-001",
+        "label": "SKU-MUG",
+        "dims": [100, 110, 120],
+        "mass": 350,
+        "quantity": 8,
+        "dg_class": "CORROSIVE",
+    }
 
 
 def test_box_reference_becomes_sku():

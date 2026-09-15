@@ -53,11 +53,11 @@ frontend is built and deployed.
 | Role-based user management | `src/pages/UserManagementPage.jsx` |
 | Pack and visualise | `OrderSummaryPage.jsx` (calls `POST /orders/{id}/solve`, embeds FitVisualizer) |
 | Packing details with box group per box and item | `src/components/orders/PackingDetails.jsx`, `src/lib/boxGroups.js` |
-| Hazard flag in UI | `src/components/common/HazardBadge.jsx` (tag in tables, ribbon on the order summary card) + checkbox in item entry |
 
 Item fields match the Portal API: `ItemCode`, `ItemReference`, `Width`,
-`Length`, `Depth` (mm), `Weight` (kg), `BoxGroup` (optional), `Quantity`,
-`Hazardous`. `ItemCode` accepts any non-blank text. The backend assigns `OrderId`.
+`Length`, `Depth` (mm), `Weight` (kg), `BoxGroup` (optional) and `Quantity`.
+`ItemCode` accepts any non-blank text. The backend assigns `OrderId`. 
+`BoxGroup` is the client-defined way to keep items apart.
 
 Box fields: `Reference`, `Width`, `Length`, `Depth`, `MaxWeight`, `BoxWeight`,
 `Active` (defaults to true) and `MaximumBoxes` (available quantity, where

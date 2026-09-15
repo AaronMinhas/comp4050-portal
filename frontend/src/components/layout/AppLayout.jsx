@@ -31,7 +31,7 @@ export default function AppLayout() {
   const [title, subtitle] = isOrderEdit
     ? ['Edit order', 'Update items before submitting for optimisation']
     : isOrderDetail
-      ? ['Order details', 'Items, flags and status for this order']
+      ? ['Order details', 'Items and status for this order']
       : TITLES[matchedKey] || ['FitPortal', ''];
 
   return (

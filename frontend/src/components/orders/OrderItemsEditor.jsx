@@ -63,7 +63,7 @@ export default function OrderItemsEditor({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {notice && (
-        <p className="rounded-sm border border-hazard/40 bg-hazard/10 p-3 text-sm text-hazard-ink lg:col-span-3">
+        <p className="rounded-sm border border-ink-100 bg-white p-3 text-sm text-ink-600 lg:col-span-3">
           {notice}
         </p>
       )}
@@ -107,7 +107,6 @@ export default function OrderItemsEditor({
             <SummaryRow label="Line items" value={items.length} />
             <SummaryRow label="Total units" value={totals.units} />
             <SummaryRow label="Total weight" value={`${totals.weight} kg`} />
-            <SummaryRow label="Hazardous lines" value={totals.hazardCount} hazardous />
           </dl>
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
           <div className="mt-5 flex gap-2">
@@ -150,13 +149,11 @@ export default function OrderItemsEditor({
   );
 }
 
-function SummaryRow({ label, value, hazardous = false }) {
+function SummaryRow({ label, value }) {
   return (
     <div className="flex justify-between">
       <dt className="text-ink-400">{label}</dt>
-      <dd className={`font-mono ${hazardous ? 'text-hazard-ink' : 'text-ink-700'}`}>
-        {value}
-      </dd>
+      <dd className="font-mono text-ink-700">{value}</dd>
     </div>
   );
 }

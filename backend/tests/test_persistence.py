@@ -35,7 +35,6 @@ SECOND_ITEM = {
     "Weight": 2.8,
     "BoxGroup": "GROUP-A",
     "Quantity": 3,
-    "Hazardous": True,
 }
 MED = {
     "Reference": "MED",
@@ -95,7 +94,7 @@ class TestOrderPersistence:
         assert float(item.weight) == pytest.approx(2.8)
         assert item.box_group == "GROUP-A"
         assert item.quantity == 3
-        assert item.hazardous is True
+        assert not hasattr(item, "hazardous")
 
     def test_items_keep_their_submitted_order_through_an_explicit_position(
         self, replica_session

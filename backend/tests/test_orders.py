@@ -31,8 +31,8 @@ SECOND_ITEM = {
 
 VALID_ORDER = {"Items": [VALID_ITEM]}
 
-# Quantity 1, Hazardous false unless the caller sets them.
-ITEM_DEFAULTS = {"Quantity": 1, "Hazardous": False}
+# Quantity 1 unless the caller sets it.
+ITEM_DEFAULTS = {"Quantity": 1}
 
 
 def as_stored(item: dict) -> dict:
@@ -110,13 +110,49 @@ class TestCreateOrder:
 
         assert "BoxGroup" not in body["Items"][0]
 
-    def test_quantity_and_hazardous_are_accepted(self):
-        item = {**VALID_ITEM, "Quantity": 4, "Hazardous": True}
+    def test_quantity_is_accepted(self):
+        item = {**VALID_ITEM, "Quantity": 4}
 
         body = client.post("/orders", json={"Items": [item]}).json()
 
         assert body["Items"][0]["Quantity"] == 4
-        assert body["Items"][0]["Hazardous"] is True
+        assert "Hazardous" not in body["Items"][0]
+
+    def test_hazardous_is_rejected_as_an_unknown_field(self):
+        response = client.post(
+            "/orders", json={"Items": [{**VALID_ITEM, "Hazardous": True}]}
+        )
+
+        assert response.status_code == 422
+
+    def test_client_item_schema_round_trips(self):
+        client_items = [
+            {
+                "ItemCode": "ACID",
+                "ItemReference": "Acid Bottle (boxed)",
+                "Width": 100,
+                "Length": 100,
+                "Depth": 200,
+                "Weight": 1.9,
+                "Quantity": 8,
+                "BoxGroup": "CORROSIVE",
+            },
+            {
+                "ItemCode": "BOOK",
+                "ItemReference": "Hardback Book",
+                "Width": 160,
+                "Length": 100,
+                "Depth": 100,
+                "Weight": 0.5,
+                "Quantity": 38,
+            },
+        ]
+
+        created = client.post("/orders", json={"Items": client_items})
+
+        assert created.status_code == 201
+        order_id = created.json()["OrderId"]
+        assert client.get(f"/orders/{order_id}").json()["Items"] == client_items
 
     def test_empty_item_list_is_rejected(self):
         response = client.post("/orders", json={"Items": []})

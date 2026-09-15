@@ -147,16 +147,6 @@ export default function ItemEntryForm({
         </Field>
       </div>
 
-      <label className="flex items-center gap-2 rounded-sm border border-hazard/40 bg-hazard/10 px-3 py-2 text-sm font-medium text-hazard-ink">
-        <input
-          type="checkbox"
-          className="h-4 w-4 accent-hazard"
-          checked={draft.Hazardous}
-          onChange={update('Hazardous')}
-        />
-        Hazardous / dangerous goods
-      </label>
-
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="flex justify-end gap-2">

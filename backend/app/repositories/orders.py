@@ -35,7 +35,6 @@ def _to_item(record: OrderItemRecord) -> Item:
         Weight=float(record.weight),
         BoxGroup=record.box_group,
         Quantity=record.quantity,
-        Hazardous=record.hazardous,
     )
 
 
@@ -62,7 +61,6 @@ def _item_records(order_id: str, items: Iterable[Item]) -> list[OrderItemRecord]
             weight=item.weight,
             box_group=item.box_group,
             quantity=item.quantity,
-            hazardous=item.hazardous,
         )
         for position, item in enumerate(items)
     ]
