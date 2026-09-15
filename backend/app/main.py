@@ -5,13 +5,15 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth import verify_auth_configuration
 from app.database import verify_connection
-from app.routes import boxes, orders, solve
+from app.routes import boxes, orders, solve, users
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     verify_connection()
+    verify_auth_configuration()
     yield
 
 
@@ -40,14 +42,14 @@ _origins = (
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_methods=["GET", "POST", "PUT"],
-    # X-FitPortal-Mock-Role is development-only until real authentication lands.
-    allow_headers=["content-type", "x-fitportal-mock-role"],
+    allow_methods=["DELETE", "GET", "POST", "PUT"],
+    allow_headers=["authorization", "content-type"],
 )
 
 app.include_router(orders.router)
 app.include_router(solve.router)
 app.include_router(boxes.router)
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["status"])

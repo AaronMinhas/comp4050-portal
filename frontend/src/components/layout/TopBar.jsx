@@ -20,13 +20,13 @@ export default function TopBar({ title, subtitle }) {
         <div className="text-right">
           <p className="text-sm font-medium text-ink-700">{identity?.name}</p>
           <p className="text-xs text-ink-300">
-            {ROLE_LABELS[identity?.role]} · mock identity
+            {ROLE_LABELS[identity?.role]}
           </p>
         </div>
         <Button
           variant="secondary"
-          onClick={() => {
-            logout();
+          onClick={async () => {
+            await logout();
             navigate('/login');
           }}
         >

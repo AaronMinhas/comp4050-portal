@@ -138,11 +138,6 @@ def session_scope() -> Iterator[Session]:
         session.close()
 
 
-def get_session() -> Iterator[Session]:
-    with session_scope() as session:
-        yield session
-
-
 def verify_connection() -> None:
     try:
         with get_engine().connect() as connection:

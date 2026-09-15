@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -11,6 +12,17 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 
 TEST_DATABASE_URL_VARIABLE = "FITPORTAL_TEST_DATABASE_URL"
+os.environ.setdefault(
+    "SUPABASE_JWT_SECRET",
+    "fitportal-test-jwt-secret-with-at-least-32-characters",
+)
+os.environ.setdefault("SUPABASE_JWT_ISSUER", "http://supabase.test/auth/v1")
+os.environ.setdefault("SUPABASE_URL", "http://supabase.test")
+os.environ.setdefault("SUPABASE_SECRET_KEY", "sb_secret_test-key")
+os.environ.setdefault(
+    "VISUALIZER_TOKEN_SECRET",
+    "fitportal-test-visualizer-secret-with-at-least-32-characters",
+)
 
 DEFAULT_TEST_DATABASE_URL = (
     "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/fitportal_test"
@@ -112,3 +124,39 @@ def portal_test_database() -> None:
     database.verify_connection()
     yield
     database.dispose_engine()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def portal_test_users(portal_test_database) -> None:
+    from app.database import session_scope
+    from app.models import Role
+    from app.repositories import users as user_repository
+    from tests.auth_helpers import AUTH_USER_IDS
+
+    with session_scope() as session:
+        for role in Role:
+            user_repository.create_user(
+                session,
+                auth_user_id=AUTH_USER_IDS[role],
+                email=f"{role.value.lower()}@fitportal.test",
+                display_name=role.value.title(),
+                role=role,
+            )
+
+
+@pytest.fixture(autouse=True)
+def default_authenticated_client(request, portal_test_users):
+    from fastapi.testclient import TestClient
+    from tests.auth_helpers import auth_headers
+
+    client = getattr(request.module, "client", None)
+    if not isinstance(client, TestClient):
+        yield
+        return
+    previous = client.headers.get("Authorization")
+    client.headers.update(auth_headers())
+    yield
+    if previous is None:
+        client.headers.pop("Authorization", None)
+    else:
+        client.headers["Authorization"] = previous

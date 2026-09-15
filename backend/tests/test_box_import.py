@@ -5,13 +5,14 @@ from fastapi.testclient import TestClient
 
 from app import boxes, store
 from app.main import app
-from app.models import BoxType
+from app.models import BoxType, Role
+from tests.auth_helpers import auth_headers
 
 client = TestClient(app)
 
-USER_HEADERS = {"X-FitPortal-Mock-Role": "USER"}
-SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}
-ADMINISTRATOR_HEADERS = {"X-FitPortal-Mock-Role": "ADMINISTRATOR"}
+USER_HEADERS = auth_headers(Role.USER)
+SUPERVISOR_HEADERS = auth_headers(Role.SUPERVISOR)
+ADMINISTRATOR_HEADERS = auth_headers(Role.ADMINISTRATOR)
 
 BOX_S = {
     "Reference": "BOX-S",

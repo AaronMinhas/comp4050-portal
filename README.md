@@ -12,9 +12,9 @@ The complete integrated Dynamic Fit application is maintained in the **Dynamic F
 
 Dynamic Fit consists of three main components:
 
-- **FitPortal** — Customer-facing interface, order management and API.
-- **FitSolver** — Calculates optimised packing solutions.
-- **FitVisualiser** — Displays packing solutions in 3D.
+- **FitPortal** - Customer-facing interface, order management and API.
+- **FitSolver** - Calculates optimised packing solutions.
+- **FitVisualiser** - Displays packing solutions in 3D.
 
 The current application flow is:
 
@@ -46,11 +46,14 @@ comp4050-portal/
 │   │   ├── repositories/       PostgreSQL reads and writes
 │   │   ├── routes/             FastAPI routers
 │   │   └── database.py         Engine and session lifecycle
+│   ├── scripts/                 Initial account bootstrap
 │   ├── tests/
 │   ├── .env.example
 │   ├── requirements.txt
 │   └── requirements-standalone.txt
 ├── frontend/
+│   ├── src/
+│   └── .env.example
 ├── supabase/
 │   ├── config.toml
 │   └── migrations/             Authoritative database schema
@@ -82,111 +85,143 @@ The frontend provides the FitPortal user interface for:
 - submitting orders for packing, and
 - displaying packing results.
 
-## Standalone Development
+## Local Development with Local Supabase
 
-This repository can be used independently for FitPortal development and testing.
+These instructions use the Supabase services running locally through Docker.
+They do not connect FitPortal to a hosted Supabase project.
 
-Because FitSolver exists in the Dynamic Fit monorepo, the standalone Portal environment installs FitSolver as a Python dependency from the monorepo.
+Complete the following steps in order. Unless a step says to open another
+terminal, run every command from the repository root.
 
 ### Prerequisites
 
-- Python 3.12+ and a virtual environment
-- Node 18+ and npm
-- A Docker compatible container runtime (Docker Desktop)
-- The [Supabase CLI](https://supabase.com/docs/guides/local-development), for the local database
+- Python 3.12 or newer
+- Node 18 or newer and npm
+- A Docker compatible container runtime such as Docker Desktop
+- The [Supabase CLI](https://supabase.com/docs/guides/local-development)
 
-### Database Setup
+### Step 1: Install the Backend Environment
 
-The Portal stores orders, order items, Box Inventory and packing solutions in
-PostgreSQL. Supabase is the PostgreSQL platform; the backend connects to it as
-an ordinary database over SQLAlchemy and psycopg.
-
-Start the local Supabase stack from the repository root. This creates the
-database and applies every migration in `supabase/migrations/`:
-
-```bash
-supabase start
-```
-
-Print the local connection details, including the database URL:
-
-```bash
-supabase status
-```
-
-Copy the backend environment template and set `DATABASE_URL` to that database
-URL. `backend/.env` is git-ignored and must never be committed:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-For local Supabase the default in the template is usually correct:
-
-```text
-DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres
-```
-
-To rebuild the database from the migrations at any time — this **deletes all
-local data**:
-
-```bash
-supabase db reset
-```
-
-A fresh database is empty, no orders, no solutions, and no Box
-Inventory. The migrations deliberately seed no boxes. Populate inventory
-through the Box Inventory page by importing `boxes.json`.
-
-### Backend Setup
-
-From the repository root:
+Create the project virtual environment and install the backend dependencies:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r backend/requirements-standalone.txt
+python -m pip install -r backend/requirements-standalone.txt
 ```
 
-Start the FastAPI backend:
+FitSolver is installed from the Dynamic Fit monorepo by
+`backend/requirements-standalone.txt`.
+
+### Step 2: Start Local Supabase
+
+Make sure Docker is running, then start the local Supabase stack:
 
 ```bash
-cd backend
-uvicorn app.main:app --reload
+supabase start
 ```
 
-The backend refuses to start if `DATABASE_URL` is missing or the database is
-unreachable. There is no in-memory fallback, so a misconfigured deployment
-fails immediately.
-
-The API will be available at:
-
-```text
-http://127.0.0.1:8000
-```
-
-Interactive API documentation is available at:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### Frontend Setup
-
-Open another terminal from the repository root:
+This starts the local PostgreSQL and Auth services and applies every migration
+in `supabase/migrations/`. Print the local configuration values:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+supabase status -o env
 ```
 
-The frontend will be available at:
+### Step 3: Configure the Backend for Local Supabase
+
+Copy the backend environment template:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Open `backend/.env` and map the values from `supabase status -o env` exactly as
+shown below:
 
 ```text
-http://127.0.0.1:5174
+DATABASE_URL=<DB_URL>
+SUPABASE_URL=<API_URL>
+SUPABASE_SECRET_KEY=<SECRET_KEY>
+SUPABASE_JWKS_URL=http://127.0.0.1:54321/auth/v1/.well-known/jwks.json
+VISUALIZER_TOKEN_SECRET=<stable random value containing at least 32 characters>
+PORTAL_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
+
+Use the modern `SECRET_KEY` value beginning with `sb_secret_`. Do not use the
+legacy JWT-formatted `SERVICE_ROLE_KEY`. Keep `backend/.env` local and never
+commit it.
+
+### Step 4: Create the Local Test Accounts
+
+Run the following commands from the repository root. Keep the virtual
+environment created in Step 1. The explicit `.venv/bin/python` path prevents the
+system Python from being used accidentally.
+
+```bash
+export BOOTSTRAP_ADMIN_EMAIL=admin@local.test
+export BOOTSTRAP_ADMIN_PASSWORD='localtest'
+export BOOTSTRAP_SUPERVISOR_EMAIL=supervisor@local.test
+export BOOTSTRAP_SUPERVISOR_PASSWORD='localtest'
+.venv/bin/python backend/scripts/bootstrap_users.py
+```
+
+These credentials are for local testing only. Do not reuse them with hosted
+Supabase. The bootstrap is idempotent, so running it again leaves existing
+accounts with the expected roles unchanged.
+
+### Step 5: Start the Backend
+
+From the repository root, run:
+
+```bash
+.venv/bin/python -m uvicorn app.main:app --reload --app-dir backend
+```
+
+The API is available at `http://127.0.0.1:8000`. Interactive API documentation
+is available at `http://127.0.0.1:8000/docs`.
+
+The backend refuses to start when its database or authentication configuration
+is missing or unreachable.
+
+### Step 6: Configure the Frontend for Local Supabase
+
+Open another terminal at the repository root. Copy the frontend environment
+template:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+Set `VITE_SUPABASE_PUBLISHABLE_KEY` in `frontend/.env` to the
+`PUBLISHABLE_KEY` printed by `supabase status -o env`. The browser receives only
+this public key. It must never receive `SUPABASE_SECRET_KEY`.
+
+### Step 7: Start the Frontend
+
+From the repository root, run:
+
+```bash
+npm --prefix frontend install
+npm --prefix frontend run dev
+```
+
+The frontend is available at `http://127.0.0.1:5174`. Sign in using either local
+test account created in Step 4.
+
+### Resetting Local Supabase
+
+The following command deletes all local data and reapplies the migrations:
+
+```bash
+supabase db reset
+```
+
+Run Step 4 again after a reset because Auth identities and Portal account rows
+are deleted. A fresh local database contains no orders, solutions or box
+inventory. Populate inventory through the Box Inventory page by importing
+`boxes.json`.
 
 ## FitSolver Integration
 
@@ -220,6 +255,11 @@ FitVisualiser is maintained as part of the Dynamic Fit monorepo:
 
 FitVisualiser is not included in this standalone repository.
 
+The Visualizer cannot attach the Portal bearer token when it fetches a URL.
+FitPortal therefore issues a short-lived token scoped to the current order and
+exact saved solution. Normal solution and summary endpoints remain protected,
+and the Supabase access token is never placed in a URL.
+
 The Portal frontend expects FitVisualiser to be running at:
 
 ```text
@@ -236,16 +276,33 @@ To run and test the complete Portal → Solver → Visualiser workflow, use the 
 
 The current Portal API provides the following routes:
 
-| Method | Route | Purpose |
-|---|---|---|
-| `POST` | `/orders` | Create an order |
-| `GET` | `/orders` | List orders |
-| `GET` | `/orders/{id}` | Retrieve an order |
-| `POST` | `/orders/{id}/solve` | Pack an existing order using FitSolver |
-| `GET` | `/orders/{id}/solution` | Retrieve the packing solution |
-| `GET` | `/orders/{id}/solution/summary` | Retrieve the packing summary |
-| `GET` | `/health` | API health check |
-| `GET` | `/docs` | Interactive OpenAPI documentation |
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| `GET` | `/health` | Public | API health check |
+| `GET` | `/docs` | Public | Interactive OpenAPI documentation |
+| `GET` | `/auth/me` | Signed-in user | Retrieve the current Portal profile |
+| `POST` | `/orders` | Signed-in user | Create an order |
+| `GET` | `/orders` | Signed-in user | List orders |
+| `GET` | `/orders/{id}` | Signed-in user | Retrieve an order |
+| `PUT` | `/orders/{id}` | Signed-in user | Replace an order's items |
+| `POST` | `/orders/{id}/submit` | Signed-in user | Submit a draft order for optimisation |
+| `POST` | `/orders/{id}/solve` | Supervisor or Administrator | Pack an order using FitSolver |
+| `POST` | `/orders/{id}/finalise` | Supervisor or Administrator | Finalise an order and consume inventory |
+| `GET` | `/orders/{id}/solution` | Signed-in user | Retrieve the packing solution |
+| `GET` | `/orders/{id}/solution/summary` | Signed-in user | Retrieve the packing summary |
+| `POST` | `/orders/{id}/visualizer-handoff` | Signed-in user | Create a scoped visualizer URL |
+| `GET` | `/orders/{id}/solution/visualizer` | Scoped handoff token | Retrieve a solution for FitVisualizer |
+| `GET` | `/boxes` | Signed-in user | List box inventory |
+| `GET` | `/boxes/{reference}` | Signed-in user | Retrieve a box type |
+| `POST` | `/boxes` | Supervisor or Administrator | Create a box type |
+| `PUT` | `/boxes/{reference}` | Supervisor or Administrator | Update a box type |
+| `POST` | `/boxes/import` | Supervisor or Administrator | Import reviewed box inventory |
+| `GET` | `/users` | Supervisor or Administrator | List Portal accounts |
+| `POST` | `/users` | Supervisor or Administrator | Create a Portal account |
+| `PUT` | `/users/{id}` | Supervisor or Administrator | Update a Portal account |
+| `POST` | `/users/{id}/disable` | Supervisor or Administrator | Disable a Portal account |
+| `POST` | `/users/{id}/enable` | Supervisor or Administrator | Enable a Portal account |
+| `DELETE` | `/users/{id}` | Supervisor or Administrator | Delete a Portal account |
 
 Order IDs are generated by the Portal API using the `ORD-###` format.
 
@@ -318,18 +375,31 @@ The authoritative schema lives in `supabase/migrations/`.
 | `order_items` | Each order's items, with an explicit `position` |
 | `box_types` | Deployment-wide Box Inventory |
 | `solutions` | The one active FitSolver document per order, as JSONB |
+| `portal_users` | Supabase identity mapping, authoritative Portal role and status |
 
 `order_id_sequence` and `order_reference_sequence` generate `ORD-001` and
-`DF-001`. Because PostgreSQL sequences are not rolled back by a failed
-transaction, reference gaps such as `DF-001`, `DF-003` are expected and
-accepted; uniqueness and concurrency safety matter more than gapless numbering.
+`MQ-001`. Because PostgreSQL sequences are not rolled back by a failed
+transaction, reference gaps such as `MQ-001`, `MQ-003` are expected and
+accepted. Uniqueness and concurrency safety matter more than gapless numbering.
 
-### Role based access control
+### Authentication and role-based access control
 
 FastAPI is the only trusted writer. The browser never receives PostgreSQL
 credentials, and React never reads or writes these tables directly.
 
-Row Level Security is deliberately **not** the authorisation layer at the moment.
+React signs in with Supabase email/password Auth and sends the access token to
+FastAPI as a bearer token. FastAPI verifies it, maps the Auth UUID to
+`portal_users`, and applies the database role and account status. Token metadata
+cannot grant Portal permissions, and disabled accounts are rejected even while
+their Supabase session remains cryptographically valid.
+
+Users can work with orders and read inventory. Supervisors additionally run the
+Solver, finalise orders, manage inventory, and manage USER accounts.
+Administrators can also manage SUPERVISOR accounts. FastAPI prevents any change
+that would leave no active Administrator.
+
+Row Level Security is not the application authorisation layer because the
+backend connects with its own database credential and owns all policy checks.
 
 ## Development Workflow
 

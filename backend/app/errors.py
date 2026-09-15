@@ -43,3 +43,27 @@ class InventoryConsumptionError(PortalDomainError):
     def __init__(self, issues: list[str]):
         self.issues = issues
         super().__init__(" ".join(issues))
+
+
+class UserNotFoundError(PortalDomainError):
+    pass
+
+
+class DuplicateUserError(PortalDomainError):
+    pass
+
+
+class UserManagementConflictError(PortalDomainError):
+    pass
+
+
+class AuthAdminError(PortalDomainError):
+    pass
+
+
+class DuplicateAuthUserError(AuthAdminError):
+    pass
+
+
+class AuthAdminTransportError(AuthAdminError):
+    pass

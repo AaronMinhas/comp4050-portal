@@ -15,13 +15,14 @@ from app import boxes, database, finalisation, store
 from app.db.models import BoxTypeRecord, OrderItemRecord, OrderRecord, SolutionRecord
 from app.errors import InventoryConsumptionError, OrderStatusConflictError
 from app.main import app
-from app.models import BoxType, Item, Order
+from app.models import BoxType, Item, Order, Role
 from app.repositories import boxes as box_repository
 from app.repositories import orders as order_repository
 from app.repositories import solutions as solution_repository
+from tests.auth_helpers import auth_headers
 
 client = TestClient(app)
-SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}
+SUPERVISOR_HEADERS = auth_headers(Role.SUPERVISOR)
 
 ITEM = {
     "ItemCode": "ITM-001",

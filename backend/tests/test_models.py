@@ -290,18 +290,18 @@ class TestOrder:
 
     def test_client_supplied_reference_is_rejected(self):
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            Order(Reference="DF-999", Items=SAMPLE_ITEMS)
+            Order(Reference="MQ-999", Items=SAMPLE_ITEMS)
 
 
 class TestStoredOrder:
 
     def test_status_starts_as_draft(self):
-        stored = StoredOrder(OrderId="ORD-001", Reference="DF-001", Items=SAMPLE_ITEMS)
+        stored = StoredOrder(OrderId="ORD-001", Reference="MQ-001", Items=SAMPLE_ITEMS)
 
         assert stored.status == "DRAFT"
 
     def test_created_at_is_assigned_automatically(self):
-        stored = StoredOrder(OrderId="ORD-001", Reference="DF-001", Items=SAMPLE_ITEMS)
+        stored = StoredOrder(OrderId="ORD-001", Reference="MQ-001", Items=SAMPLE_ITEMS)
 
         assert isinstance(stored.created_at, datetime)
 
@@ -309,14 +309,14 @@ class TestStoredOrder:
         with pytest.raises(ValidationError):
             StoredOrder(
                 OrderId="ORD-001",
-                Reference="DF-001",
+                Reference="MQ-001",
                 Status="Shipped",
                 Items=SAMPLE_ITEMS,
             )
 
     def test_order_id_is_required(self):
         with pytest.raises(ValidationError):
-            StoredOrder(Reference="DF-001", Items=SAMPLE_ITEMS)
+            StoredOrder(Reference="MQ-001", Items=SAMPLE_ITEMS)
 
     def test_reference_is_required(self):
         with pytest.raises(ValidationError):

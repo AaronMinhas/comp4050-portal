@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     Sequence,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -25,11 +27,43 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 ORDER_ID_SEQUENCE = Sequence("order_id_sequence", start=1)
 ORDER_REFERENCE_SEQUENCE = Sequence("order_reference_sequence", start=1)
 
-LIFECYCLE_STATES = ("DRAFT", "AWAITING_OPTIMISATION", "OPTIMISED", "FINAL")
-
-
 class Base(DeclarativeBase):
     pass
+
+
+class PortalUserRecord(Base):
+    __tablename__ = "portal_users"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    auth_user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "role in ('USER', 'SUPERVISOR', 'ADMINISTRATOR')",
+            name="portal_users_role_is_valid",
+        ),
+        CheckConstraint(
+            "status in ('ACTIVE', 'DISABLED')",
+            name="portal_users_status_is_valid",
+        ),
+        CheckConstraint(
+            "length(btrim(email)) > 0", name="portal_users_email_not_blank"
+        ),
+        CheckConstraint(
+            "display_name is null or length(btrim(display_name)) > 0",
+            name="portal_users_display_name_not_blank",
+        ),
+    )
 
 
 class OrderRecord(Base):

@@ -10,12 +10,13 @@ from sqlalchemy.orm import Session
 from app import boxes, database, store
 from app.db.models import BoxTypeRecord, OrderItemRecord, OrderRecord, SolutionRecord
 from app.main import app
-from app.models import BoxType
+from app.models import BoxType, Role
 from app.repositories.orders import next_order_identity
+from tests.auth_helpers import auth_headers
 
 client = TestClient(app)
-SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}
-USER_HEADERS = {"X-FitPortal-Mock-Role": "USER"}
+SUPERVISOR_HEADERS = auth_headers(Role.SUPERVISOR)
+USER_HEADERS = auth_headers(Role.USER)
 
 ITEM = {
     "ItemCode": "ITM-001",
@@ -76,7 +77,7 @@ class TestOrderPersistence:
         record = replica_session.get(OrderRecord, order_id)
 
         assert record is not None
-        assert record.reference == "DF-001"
+        assert record.reference == "MQ-001"
         assert record.status == "DRAFT"
 
     def test_order_items_are_stored_relationally_with_every_field(
@@ -159,8 +160,8 @@ class TestIdentityGeneration:
         first = client.post("/orders", json={"Items": [ITEM]}).json()
         second = client.post("/orders", json={"Items": [ITEM]}).json()
 
-        assert (first["OrderId"], first["Reference"]) == ("ORD-001", "DF-001")
-        assert (second["OrderId"], second["Reference"]) == ("ORD-002", "DF-002")
+        assert (first["OrderId"], first["Reference"]) == ("ORD-001", "MQ-001")
+        assert (second["OrderId"], second["Reference"]) == ("ORD-002", "MQ-002")
 
     def test_identity_keeps_advancing_for_a_session_that_did_not_mint_it(self):
         create_order([ITEM])
@@ -168,7 +169,7 @@ class TestIdentityGeneration:
         with database.session_scope() as session:
             _, order_id, reference = next_order_identity(session)
 
-        assert (order_id, reference) == ("ORD-002", "DF-002")
+        assert (order_id, reference) == ("ORD-002", "MQ-002")
 
     def test_references_are_unique_across_many_orders(self):
         references = {
@@ -187,7 +188,7 @@ class TestIdentityGeneration:
         created = client.post("/orders", json={"Items": [ITEM]}).json()
 
         assert created["OrderId"] == "ORD-002"
-        assert created["Reference"] == "DF-002"
+        assert created["Reference"] == "MQ-002"
         assert client.get("/orders").json()[0]["OrderId"] == "ORD-002"
 
 

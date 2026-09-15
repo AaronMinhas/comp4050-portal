@@ -92,16 +92,6 @@ def find_solution(order_id: str) -> dict | None:
         return solution_repository.find_solution(session, order_id)
 
 
-def invalidate_solution(order_id: str) -> None:
-    """Discard the active result after an edit makes it stale.
-
-    TODO: Version history should retain invalidated solutions rather than
-    permanently discarding them.
-    """
-    with session_scope() as session:
-        solution_repository.invalidate_solution(session, order_id)
-
-
 def reset() -> None:
     """Reset persistent state and identity sequences for tests."""
     with session_scope() as session:
@@ -120,7 +110,6 @@ __all__ = [
     "OrderStatusConflictError",
     "find_order",
     "find_solution",
-    "invalidate_solution",
     "list_orders",
     "replace_order_items",
     "reset",

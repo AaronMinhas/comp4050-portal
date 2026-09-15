@@ -6,11 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app import boxes
 from app.auth import (
-    MockIdentity,
-    get_current_identity,
-    require_inventory_manager_identity,
+    get_current_user,
+    require_inventory_manager,
 )
-from app.models import BoxImportRequest, BoxImportResponse, BoxType, BoxTypeUpdate
+from app.models import BoxImportRequest, BoxImportResponse, BoxType, BoxTypeUpdate, PortalUser
 
 router = APIRouter(prefix="/boxes", tags=["boxes"])
 
@@ -27,7 +26,7 @@ def require_box_type(reference: str) -> BoxType:
 
 @router.get("", response_model=list[BoxType], summary="List all box inventory")
 def list_box_types(
-    _identity: Annotated[MockIdentity, Depends(get_current_identity)],
+    _user: Annotated[PortalUser, Depends(get_current_user)],
 ) -> list[BoxType]:
     return boxes.list_box_types()
 
@@ -37,7 +36,7 @@ def list_box_types(
 )
 def get_box_type(
     reference: str,
-    _identity: Annotated[MockIdentity, Depends(get_current_identity)],
+    _user: Annotated[PortalUser, Depends(get_current_user)],
 ) -> BoxType:
     return require_box_type(reference)
 
@@ -50,9 +49,7 @@ def get_box_type(
 )
 def create_box_type(
     box: BoxType,
-    _identity: Annotated[
-        MockIdentity, Depends(require_inventory_manager_identity)
-    ],
+    _user: Annotated[PortalUser, Depends(require_inventory_manager)],
 ) -> BoxType:
     try:
         return boxes.add_box_type(box)
@@ -70,9 +67,7 @@ def create_box_type(
 )
 def import_box_types(
     request: BoxImportRequest,
-    _identity: Annotated[
-        MockIdentity, Depends(require_inventory_manager_identity)
-    ],
+    _user: Annotated[PortalUser, Depends(require_inventory_manager)],
 ) -> BoxImportResponse:
     try:
         imported = boxes.import_box_types(request.boxes)
@@ -92,9 +87,7 @@ def import_box_types(
 def update_box_type(
     reference: str,
     changes: BoxTypeUpdate,
-    _identity: Annotated[
-        MockIdentity, Depends(require_inventory_manager_identity)
-    ],
+    _user: Annotated[PortalUser, Depends(require_inventory_manager)],
 ) -> BoxType:
     updated = boxes.update_box_type(reference, changes)
     if updated is None:

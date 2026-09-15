@@ -8,11 +8,16 @@ const TITLES = {
   '/orders': ['Orders', 'All orders raised by your team'],
   '/orders/new': ['New order', 'Add items and confirm details for packing'],
   '/boxes': ['Box Inventory', 'Reusable box types and available quantities'],
+  '/users': ['User management', 'Portal roles and account access'],
 };
 
 export default function AppLayout() {
-  const { identity } = useApp();
+  const { identity, authInitializing } = useApp();
   const location = useLocation();
+
+  if (authInitializing) {
+    return <div className="p-10 text-center text-sm text-ink-400">Restoring session…</div>;
+  }
 
   if (!identity) {
     return <Navigate to="/login" replace state={{ from: location }} />;

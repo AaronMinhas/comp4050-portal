@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 import re
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -30,6 +31,11 @@ class Role(StrEnum):
     ADMINISTRATOR = "ADMINISTRATOR"
     SUPERVISOR = "SUPERVISOR"
     USER = "USER"
+
+
+class UserStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    DISABLED = "DISABLED"
 
 
 ROLE_LABELS: dict[Role, str] = {
@@ -167,3 +173,39 @@ class StoredOrder(Order):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), alias="CreatedAt"
     )
+
+
+class PortalUser(PortalModel):
+    id: UUID = Field(alias="Id")
+    auth_user_id: UUID = Field(alias="AuthUserId")
+    email: str = Field(alias="Email", min_length=3)
+    display_name: str | None = Field(default=None, alias="DisplayName", min_length=1)
+    role: Role = Field(alias="Role")
+    status: UserStatus = Field(alias="Status")
+    created_at: datetime = Field(alias="CreatedAt")
+    updated_at: datetime = Field(alias="UpdatedAt")
+
+
+class UserCreate(PortalModel):
+    email: str = Field(alias="Email", min_length=3)
+    password: str = Field(alias="Password", min_length=8)
+    display_name: str | None = Field(default=None, alias="DisplayName", min_length=1)
+    role: Role = Field(default=Role.USER, alias="Role")
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if "@" not in value or value.startswith("@") or value.endswith("@"):
+            raise ValueError("Email must be a valid address")
+        return value
+
+
+class UserUpdate(PortalModel):
+    display_name: str | None = Field(default=None, alias="DisplayName", min_length=1)
+    role: Role = Field(alias="Role")
+
+
+class VisualizerHandoff(PortalModel):
+    solution_url: str = Field(alias="SolutionUrl")
+    expires_in: int = Field(alias="ExpiresIn", gt=0)

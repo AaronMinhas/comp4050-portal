@@ -2,7 +2,7 @@
 
 # TODO: Replace this temporary value with persistent deployment/environment
 # configuration when deployment setup is implemented.
-DEFAULT_COMPANY_CODE = "DF"
+DEFAULT_COMPANY_CODE = "MQ"
 
 
 def format_order_reference(sequence_number: int) -> str:

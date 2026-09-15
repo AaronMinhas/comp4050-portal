@@ -3,10 +3,12 @@ from fastapi.testclient import TestClient
 
 from app import boxes, store
 from app.main import app
+from app.models import Role
+from tests.auth_helpers import auth_headers
 from tests.box_fixtures import DEFAULT_BOX_TYPES
 
 client = TestClient(app)
-SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}
+SUPERVISOR_HEADERS = auth_headers(Role.SUPERVISOR)
 
 VALID_ITEM = {
     "ItemCode": "ITM-001",
@@ -54,7 +56,7 @@ class TestCreateOrder:
         body = client.post("/orders", json=VALID_ORDER).json()
 
         assert body["OrderId"] == "ORD-001"
-        assert body["Reference"] == "DF-001"
+        assert body["Reference"] == "MQ-001"
 
     def test_order_ids_increment(self):
         first = client.post("/orders", json=VALID_ORDER).json()
@@ -73,9 +75,9 @@ class TestCreateOrder:
         third = client.post("/orders", json={"Items": [SECOND_ITEM]}).json()
 
         assert [first["Reference"], second["Reference"], third["Reference"]] == [
-            "DF-001",
-            "DF-002",
-            "DF-003",
+            "MQ-001",
+            "MQ-002",
+            "MQ-003",
         ]
 
     def test_returned_items_match_submitted_items(self):
@@ -304,7 +306,7 @@ class TestUpdateOrder:
         "field, value",
         [
             ("OrderId", "ORD-999"),
-            ("Reference", "DF-999"),
+            ("Reference", "MQ-999"),
             ("CreatedAt", "2020-01-01"),
             ("Status", "OPTIMISED"),
         ],

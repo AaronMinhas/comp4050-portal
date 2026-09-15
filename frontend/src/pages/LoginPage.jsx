@@ -1,45 +1,46 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import Field, { inputClass } from '../components/common/Field.jsx';
 import Button from '../components/common/Button.jsx';
 import AuthShell from '../components/layout/AuthShell.jsx';
-import {
-  MOCK_LOGIN_CREDENTIALS,
-  ROLE_LABELS,
-  ROLE_OPTIONS,
-  ROLES,
-} from '../lib/roles.js';
 
 export default function LoginPage() {
-  const { login } = useApp();
+  const { identity, authInitializing, authError, login } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const [role, setRole] = useState(ROLES.USER);
-  const [email, setEmail] = useState(MOCK_LOGIN_CREDENTIALS[ROLES.USER].email);
-  const [password, setPassword] = useState(
-    MOCK_LOGIN_CREDENTIALS[ROLES.USER].password
-  );
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    if (!authInitializing && identity) {
+      navigate(location.state?.from?.pathname || '/orders', { replace: true });
+    }
+  }, [authInitializing, identity, location.state, navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       setError('Enter an email and password to continue.');
       return;
     }
-    // No backend yet - any well-formed credentials succeed.
-    login(email, role);
-    navigate(location.state?.from?.pathname || '/orders', { replace: true });
+    setSubmitting(true);
+    setError('');
+    try {
+      await login(email, password);
+      navigate(location.state?.from?.pathname || '/orders', { replace: true });
+    } catch (loginError) {
+      setError(loginError.message || 'Sign in failed.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const selectRole = (nextRole) => {
-    const credentials = MOCK_LOGIN_CREDENTIALS[nextRole];
-    setRole(nextRole);
-    setEmail(credentials.email);
-    setPassword(credentials.password);
-    setError('');
-  };
+  if (authInitializing) {
+    return <AuthShell heading="Signing in" subheading="Restoring your session…" />;
+  }
 
   return (
     <AuthShell
@@ -55,6 +56,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
+            required
           />
         </Field>
         <Field label="Password">
@@ -65,27 +67,14 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
+            required
           />
         </Field>
-        <Field label="Development role">
-          <select
-            className={inputClass()}
-            value={role}
-            onChange={(e) => selectRole(e.target.value)}
-          >
-            {ROLE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {ROLE_LABELS[option]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <p className="rounded-sm border border-brand-100 bg-brand-50 p-3 text-xs text-brand-700">
-          Temporary mock authentication: choosing a role prefills editable development credentials.
-        </p>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button type="submit" className="w-full">
-          Sign in
+        {(error || authError) && (
+          <p className="text-sm text-red-600">{error || authError.message}</p>
+        )}
+        <Button type="submit" className="w-full" disabled={submitting}>
+          {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
     </AuthShell>

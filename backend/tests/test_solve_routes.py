@@ -11,13 +11,14 @@ from fitsolver import portal
 from app import boxes, store
 from app.boxes import active_box_types
 from app.main import app
-from app.models import BoxTypeUpdate
+from app.models import BoxTypeUpdate, Role
+from tests.auth_helpers import auth_headers
 from tests.box_fixtures import DEFAULT_BOX_TYPES
 
 client = TestClient(app)
-SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}
-ADMINISTRATOR_HEADERS = {"X-FitPortal-Mock-Role": "ADMINISTRATOR"}
-USER_HEADERS = {"X-FitPortal-Mock-Role": "USER"}
+SUPERVISOR_HEADERS = auth_headers(Role.SUPERVISOR)
+ADMINISTRATOR_HEADERS = auth_headers(Role.ADMINISTRATOR)
+USER_HEADERS = auth_headers(Role.USER)
 NO_AVAILABLE_BOXES_DETAIL = (
     "No available box types. Add or import at least one active box with available "
     "quantity before running optimisation."
@@ -97,22 +98,24 @@ def test_administrator_can_run_solver():
     assert solve(order_id, ADMINISTRATOR_HEADERS).status_code == 200
 
 
-def test_solver_requires_an_explicit_mock_identity():
+def test_solver_requires_authentication():
     order_id = create_order([an_item()])
     submit_order(order_id)
 
-    response = client.post(f"/orders/{order_id}/solve")
+    response = client.post(
+        f"/orders/{order_id}/solve", headers={"Authorization": ""}
+    )
 
     assert response.status_code == 401
 
 
-def test_solver_rejects_an_invalid_mock_role():
+def test_solver_rejects_an_invalid_token():
     order_id = create_order([an_item()])
     submit_order(order_id)
 
-    response = solve(order_id, {"X-FitPortal-Mock-Role": "OWNER"})
+    response = solve(order_id, {"Authorization": "Bearer invalid"})
 
-    assert response.status_code == 400
+    assert response.status_code == 401
 
 
 def test_solving_an_unknown_order_is_a_404():

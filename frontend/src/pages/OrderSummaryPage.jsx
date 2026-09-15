@@ -10,6 +10,7 @@ import {
   getOrder as fetchOrder,
   getSolution as fetchSolution,
   getSolutionSummary as fetchSolutionSummary,
+  getVisualizerHandoff,
   finaliseOrder,
   solveOrder,
   submitOrder,
@@ -394,10 +395,31 @@ function LifecycleActions({
 }
 
 function OptimisationPanel({ orderId, summary, solution, solveCount }) {
+  const [handoff, setHandoff] = useState(null);
+  const [handoffLoading, setHandoffLoading] = useState(false);
+  const [handoffError, setHandoffError] = useState(null);
+
+  useEffect(() => {
+    setHandoff(null);
+    setHandoffError(null);
+  }, [orderId, solution, solveCount]);
+
+  const openVisualizer = async () => {
+    setHandoffLoading(true);
+    setHandoffError(null);
+    try {
+      setHandoff(await getVisualizerHandoff(orderId));
+    } catch (error) {
+      setHandoffError(error);
+    } finally {
+      setHandoffLoading(false);
+    }
+  };
+
   if (!summary) return null;
 
   const rejected = summary?.Rejected ?? [];
-  const visualiser = visualiserUrl(orderId);
+  const visualiser = handoff ? visualiserUrl(handoff.SolutionUrl) : null;
 
   return (
     <div className="mt-6 rounded-sm border border-ink-100 bg-white p-6">
@@ -424,22 +446,43 @@ function OptimisationPanel({ orderId, summary, solution, solveCount }) {
         <p className="font-mono text-xs uppercase tracking-wide text-ink-300">
           Optimised order {orderId}
         </p>
-        <a
-          href={visualiser}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm text-brand-500 hover:underline"
-        >
-          Open in a new tab
-        </a>
+        <div className="flex items-center gap-3">
+          <Button onClick={openVisualizer} disabled={handoffLoading || !solution}>
+            {handoffLoading
+              ? 'Opening Visualizer…'
+              : visualiser
+                ? 'Refresh Visualizer access'
+                : 'Open Visualizer'}
+          </Button>
+          {visualiser && (
+            <a
+              href={visualiser}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-brand-500 hover:underline"
+            >
+              Open in a new tab
+            </a>
+          )}
+        </div>
       </div>
 
-      <iframe
-        key={`${orderId}-${solveCount}`}
-        src={visualiser}
-        title={`FitVisualizer, order ${orderId}`}
-        className="mt-3 h-[560px] w-full rounded-sm border border-ink-100 bg-white"
-      />
+      {visualiser ? (
+        <iframe
+          key={`${orderId}-${solveCount}`}
+          src={visualiser}
+          title={`FitVisualizer, order ${orderId}`}
+          className="mt-3 h-[560px] w-full rounded-sm border border-ink-100 bg-white"
+        />
+      ) : handoffError ? (
+        <div className="mt-3 rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {handoffError.message}
+        </div>
+      ) : (
+        <div className="mt-3 flex h-32 items-center justify-center rounded-sm border border-ink-100 bg-ink-50 text-sm text-ink-400">
+          Open the Visualizer to generate short-lived access.
+        </div>
+      )}
     </div>
   );
 }

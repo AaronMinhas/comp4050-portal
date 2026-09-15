@@ -11,14 +11,15 @@ from app import boxes, database, store
 from app.db.models import BoxTypeRecord, OrderRecord, SolutionRecord
 from app.inventory import required_cartons
 from app.main import app
-from app.models import BoxType
+from app.models import BoxType, Role
 from app.repositories import boxes as box_repository
 from tests.box_fixtures import DEFAULT_BOX_TYPES
+from tests.auth_helpers import auth_headers
 
 client = TestClient(app)
 
-SUPERVISOR_HEADERS = {"X-FitPortal-Mock-Role": "SUPERVISOR"}
-USER_HEADERS = {"X-FitPortal-Mock-Role": "USER"}
+SUPERVISOR_HEADERS = auth_headers(Role.SUPERVISOR)
+USER_HEADERS = auth_headers(Role.USER)
 
 ITEM = {
     "ItemCode": "ITM-001",

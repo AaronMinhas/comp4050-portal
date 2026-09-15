@@ -1,9 +1,11 @@
 """Order API. POST assigns OrderId and Reference; routes continue using OrderId."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app import finalisation, store
-from app.auth import MockIdentity, require_finalisation_identity
+from app.auth import get_current_user, require_finalisation_user
 from app.errors import (
     InventoryConsumptionError,
     OrderNotFoundError,
@@ -11,7 +13,7 @@ from app.errors import (
     SolutionHasRejectsError,
     SolutionNotFoundError,
 )
-from app.models import Order, StoredOrder
+from app.models import Order, PortalUser, StoredOrder
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -36,7 +38,10 @@ def _conflict(detail: str) -> HTTPException:
     status_code=status.HTTP_201_CREATED,
     summary="Create an order",
 )
-def create_order(order: Order) -> StoredOrder:
+def create_order(
+    order: Order,
+    _user: Annotated[PortalUser, Depends(get_current_user)],
+) -> StoredOrder:
     return store.save_order(order)
 
 
@@ -53,7 +58,10 @@ def require_order(order_id: str) -> StoredOrder:
     response_model_exclude_none=True,
     summary="Submit a draft order for optimisation",
 )
-def submit_order(order_id: str) -> StoredOrder:
+def submit_order(
+    order_id: str,
+    _user: Annotated[PortalUser, Depends(get_current_user)],
+) -> StoredOrder:
     try:
         return store.submit_order(order_id)
     except OrderNotFoundError as exc:
@@ -68,7 +76,11 @@ def submit_order(order_id: str) -> StoredOrder:
     response_model_exclude_none=True,
     summary="Replace an order's items",
 )
-def update_order(order_id: str, order: Order) -> StoredOrder:
+def update_order(
+    order_id: str,
+    order: Order,
+    _user: Annotated[PortalUser, Depends(get_current_user)],
+) -> StoredOrder:
     try:
         return store.replace_order_items(order_id, order.items)
     except OrderNotFoundError as exc:
@@ -85,7 +97,7 @@ def update_order(order_id: str, order: Order) -> StoredOrder:
 )
 def finalise_order(
     order_id: str,
-    _identity: MockIdentity = Depends(require_finalisation_identity),
+    _user: Annotated[PortalUser, Depends(require_finalisation_user)],
 ) -> StoredOrder:
     try:
         return finalisation.finalise_order(order_id)
@@ -116,7 +128,9 @@ def finalise_order(
     response_model_exclude_none=True,
     summary="List orders, newest first",
 )
-def list_orders() -> list[StoredOrder]:
+def list_orders(
+    _user: Annotated[PortalUser, Depends(get_current_user)],
+) -> list[StoredOrder]:
     return store.list_orders()
 
 
@@ -126,5 +140,8 @@ def list_orders() -> list[StoredOrder]:
     response_model_exclude_none=True,
     summary="Retrieve an order",
 )
-def get_order(order_id: str) -> StoredOrder:
+def get_order(
+    order_id: str,
+    _user: Annotated[PortalUser, Depends(get_current_user)],
+) -> StoredOrder:
     return require_order(order_id)

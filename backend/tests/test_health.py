@@ -40,16 +40,16 @@ def test_cors_allows_the_visualiser():
     assert response.headers.get("access-control-allow-origin") == "http://127.0.0.1:5173"
 
 
-def test_cors_allows_the_temporary_mock_role_header():
+def test_cors_allows_the_authorization_header():
     response = client.options(
         "/orders/ORD-001/solve",
         headers={
             "Origin": "http://127.0.0.1:5174",
             "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "x-fitportal-mock-role",
+            "Access-Control-Request-Headers": "authorization",
         },
     )
 
-    assert "x-fitportal-mock-role" in response.headers.get(
+    assert "authorization" in response.headers.get(
         "access-control-allow-headers", ""
     ).lower()
