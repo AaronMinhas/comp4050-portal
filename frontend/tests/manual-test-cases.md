@@ -415,28 +415,6 @@ A quantity of 2 with an item weight of 5 kg produced a total weight of 10 kg.
 
 ---
 
-## FE-17 — Hazardous item
-
-**Priority:** High
-
-**Steps:**
-1. Enter a valid item.
-2. Select Hazardous.
-3. Add the item.
-
-**Expected Result:**
-The item is added and its hazardous status is clearly represented. Hazard totals update correctly.
-
-**Result:** PASS
-
-**Actual Behaviour:**
-The hazardous item was added successfully and displayed as hazardous. Hazard Flags updated correctly.
-
-**Evidence / Notes:**
-Hazard Flags changed to 1 after adding the hazardous item.
-
----
-
 ## FE-18 — Optional Box Group
 
 **Priority:** Medium

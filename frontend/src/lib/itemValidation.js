@@ -15,7 +15,6 @@ const KNOWN_FIELDS = new Set([
   'Weight',
   'BoxGroup',
   'Quantity',
-  'Hazardous',
 ]);
 
 /**
@@ -73,14 +72,6 @@ export function validateItemFields(raw, { label } = {}) {
     }
   }
 
-  if (
-    raw.Hazardous !== undefined &&
-    raw.Hazardous !== null &&
-    typeof raw.Hazardous !== 'boolean'
-  ) {
-    errors.push(`${prefix}"Hazardous" must be true or false if provided.`);
-  }
-
   return errors;
 }
 
@@ -100,7 +91,6 @@ export function normaliseItem(raw) {
     Depth: Number(raw.Depth),
     Weight: Number(raw.Weight),
     Quantity: raw.Quantity !== undefined && raw.Quantity !== '' ? Number(raw.Quantity) : 1,
-    Hazardous: Boolean(raw.Hazardous),
   };
   if (typeof raw.BoxGroup === 'string' && raw.BoxGroup.trim()) {
     item.BoxGroup = raw.BoxGroup.trim();

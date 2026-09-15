@@ -12,7 +12,7 @@ const PLACEHOLDER = `[
     "Depth": 150,
     "Weight": 4.5,
     "Quantity": 2,
-    "Hazardous": false
+    "BoxGroup": "GROUP-A"
   }
 ]`;
 

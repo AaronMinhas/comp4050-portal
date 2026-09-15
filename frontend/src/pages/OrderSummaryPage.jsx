@@ -4,7 +4,6 @@ import { useApp } from '../context/AppContext.jsx';
 import ItemsTable from '../components/orders/ItemsTable.jsx';
 import PackingDetails, { UnpackedItems } from '../components/orders/PackingDetails.jsx';
 import InventoryFeasibilityWarning from '../components/orders/InventoryFeasibilityWarning.jsx';
-import HazardBadge from '../components/common/HazardBadge.jsx';
 import Button from '../components/common/Button.jsx';
 import {
   getOrder as fetchOrder,
@@ -182,7 +181,6 @@ export default function OrderSummaryPage() {
       </div>
 
       <div className="relative overflow-hidden rounded-sm border border-ink-100 bg-white p-6">
-        {totals.hazardCount > 0 && <HazardBadge size="ribbon" />}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-wide text-ink-300">
@@ -204,15 +202,10 @@ export default function OrderSummaryPage() {
 
         <div className="cut-line my-5" />
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Stat label="Line items" value={order.Items.length} />
           <Stat label="Total units" value={totals.units} />
           <Stat label="Total weight" value={`${totals.weight} kg`} />
-          <Stat
-            label="Hazard flags"
-            value={totals.hazardCount}
-            accent={totals.hazardCount > 0}
-          />
         </div>
       </div>
 
@@ -279,15 +272,11 @@ export default function OrderSummaryPage() {
   );
 }
 
-function Stat({ label, value, accent }) {
+function Stat({ label, value }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-ink-400">{label}</p>
-      <p
-        className={`font-mono text-xl font-semibold ${accent ? 'text-hazard-ink' : 'text-ink-700'}`}
-      >
-        {value}
-      </p>
+      <p className="font-mono text-xl font-semibold text-ink-700">{value}</p>
     </div>
   );
 }
@@ -432,11 +421,7 @@ function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Boxes" value={summary.BoxCount} />
         <Stat label="Items packed" value={summary.ItemsPacked} />
-        <Stat
-          label="Rejected"
-          value={rejected.length}
-          accent={rejected.length > 0}
-        />
+        <Stat label="Rejected" value={rejected.length} />
         <Stat label="Fill rate" value={`${Math.round(summary.FillRate * 1000) / 10}%`} />
       </div>
 

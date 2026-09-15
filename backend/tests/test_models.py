@@ -67,8 +67,8 @@ SAMPLE_BOX_TYPES = [
 VALID_ITEM = SAMPLE_ITEMS[0]
 VALID_BOX_TYPE = SAMPLE_BOX_TYPES[0]
 
-# Quantity 1, Hazardous false unless the caller sets them.
-ITEM_DEFAULTS = {"Quantity": 1, "Hazardous": False}
+# Quantity 1 unless the caller sets it.
+ITEM_DEFAULTS = {"Quantity": 1}
 
 
 def test_roles_have_stable_values_and_user_facing_labels():
@@ -168,11 +168,24 @@ class TestItem:
         with pytest.raises(ValidationError):
             Item(**{**VALID_ITEM, "Quantity": value})
 
-    def test_hazardous_defaults_to_false(self):
-        assert Item(**VALID_ITEM).hazardous is False
+    def test_client_item_schema_validates(self):
+        item = Item(**{
+            "ItemCode": "ACID",
+            "ItemReference": "Acid Bottle (boxed)",
+            "Width": 100,
+            "Length": 100,
+            "Depth": 200,
+            "Weight": 1.9,
+            "Quantity": 8,
+            "BoxGroup": "CORROSIVE",
+        })
 
-    def test_hazardous_may_be_flagged(self):
-        assert Item(**{**VALID_ITEM, "Hazardous": True}).hazardous is True
+        assert (item.item_code, item.box_group, item.quantity) == ("ACID", "CORROSIVE", 8)
+        assert not hasattr(item, "hazardous")
+
+    def test_hazardous_is_not_an_item_field(self):
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            Item(**{**VALID_ITEM, "Hazardous": True})
 
 
 class TestBoxType:

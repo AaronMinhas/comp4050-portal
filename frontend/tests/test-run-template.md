@@ -29,7 +29,6 @@
 | FE-14 | FAIL | Frontend allows invalid item data to be added: 0×0×0 mm dimensions were accepted with both 0 kg and 1 kg weight. Invalid dimensions are only rejected later by the server when creating the order. Item code `itm22` is also accepted; verify whether `ITM-###` format is mandatory. |
 | FE-15 | PASS | Item was removed successfully and the order summary updated correctly after removal. |
 | FE-16   | PASS   | Quantity and total weight calculated correctly: 2 units × 5 kg = 10 kg |
-| FE-17 | PASS | Hazardous item was added successfully, displayed as hazardous, and the Hazard Flags count updated correctly. |
 | FE-18 | PASS | Item was added successfully with Box Group left blank; the item displayed `--` for Box Group. |
 | FE-19 | PASS | Packing completed successfully for ORD-002; status changed to Packed and packing results displayed 2 boxes, 14 items packed, and 0 rejected. |
 | FE-20 | FAIL | Clicking "Pack again" on an already packed order produced no visible action, feedback, or updated result. |

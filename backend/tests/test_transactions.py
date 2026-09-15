@@ -167,7 +167,6 @@ class TestOrderEditIsAtomic:
                         depth=1,
                         weight=1,
                         quantity=1,
-                        hazardous=False,
                     )
                 )
                 order_repository.set_status(session, record, "DRAFT")

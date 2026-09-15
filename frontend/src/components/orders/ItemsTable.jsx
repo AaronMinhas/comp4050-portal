@@ -1,5 +1,4 @@
 import React from 'react';
-import HazardBadge from '../common/HazardBadge.jsx';
 
 export default function ItemsTable({
   items,
@@ -27,7 +26,6 @@ export default function ItemsTable({
             <th className="px-3 py-2 font-mono">Weight</th>
             <th className="px-3 py-2">Qty</th>
             <th className="px-3 py-2">Box group</th>
-            <th className="px-3 py-2"></th>
             {onRemove && <th className="px-3 py-2" />}
           </tr>
         </thead>
@@ -61,7 +59,6 @@ export default function ItemsTable({
                   <span className="text-ink-200">—</span>
                 )}
               </td>
-              <td className="px-3 py-2">{item.Hazardous && <HazardBadge />}</td>
               {(onEdit || onRemove) && (
                 <td className="px-3 py-2 text-right">
                   <div className="flex justify-end gap-3">

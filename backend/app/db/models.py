@@ -120,7 +120,6 @@ class OrderItemRecord(Base):
     box_group: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    hazardous: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     order: Mapped[OrderRecord] = relationship(back_populates="items")
 

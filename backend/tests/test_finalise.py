@@ -258,7 +258,6 @@ def test_final_order_cannot_be_edited_and_solution_is_preserved():
     assert client.get(f"/orders/{order_id}").json()["Items"] == [{
         **ITEM,
         "Quantity": 1,
-        "Hazardous": False,
     }]
     assert store.find_solution(order_id) == document
 

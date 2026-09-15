@@ -53,7 +53,7 @@ class PortalModel(BaseModel):
 
 
 class Item(PortalModel):
-    """An item to pack. Quantity defaults to 1; Hazardous defaults to false."""
+    """An item to pack, following the client's item schema. Quantity defaults to 1."""
 
     # The client's own identifier: any non-blank text, stored as given.
     item_code: str = Field(alias="ItemCode", min_length=1)
@@ -64,7 +64,6 @@ class Item(PortalModel):
     weight: float = Field(alias="Weight", gt=0, le=32)
     box_group: str | None = Field(default=None, alias="BoxGroup", min_length=1)
     quantity: int = Field(default=1, alias="Quantity", ge=1)
-    hazardous: bool = Field(default=False, alias="Hazardous")
 
     @field_validator("box_group", mode="before")
     @classmethod
