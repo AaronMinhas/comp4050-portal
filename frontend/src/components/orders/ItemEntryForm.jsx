@@ -68,7 +68,7 @@ export default function ItemEntryForm({ onAdd }) {
         <Field label="Width (mm)">
           <input
             type="number"
-            min="0"
+            min="1"
             className={inputClass('font-mono')}
             value={draft.Width}
             onChange={update('Width')}
@@ -77,7 +77,7 @@ export default function ItemEntryForm({ onAdd }) {
         <Field label="Length (mm)">
           <input
             type="number"
-            min="0"
+            min="1"
             className={inputClass('font-mono')}
             value={draft.Length}
             onChange={update('Length')}
@@ -86,7 +86,7 @@ export default function ItemEntryForm({ onAdd }) {
         <Field label="Depth (mm)">
           <input
             type="number"
-            min="0"
+            min="1"
             className={inputClass('font-mono')}
             value={draft.Depth}
             onChange={update('Depth')}
