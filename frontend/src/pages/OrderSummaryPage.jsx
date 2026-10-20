@@ -18,6 +18,7 @@ import {
 import { formatCreated, orderTotals } from '../lib/orders.js';
 import { orderStatusLabel, orderStatusStyle } from '../lib/orderStatus.js';
 import { canRunSolver } from '../lib/roles.js';
+import { formatSolveTime } from '../lib/solveTime.js';
 
 export default function OrderSummaryPage() {
   const { id } = useParams();
@@ -441,6 +442,7 @@ function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
     (total, carton) => total + carton.placements.length, 0
   );
   const fillRate = summary?.FillRate ?? solution.metrics.fill_rate;
+  const solveTime = solution?.solver?.elapsed_ms ?? summary?.SolveTimeMs;
   const visualiser = handoff ? visualiserUrl(handoff.SolutionUrl) : null;
 
   return (
@@ -450,11 +452,12 @@ function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
         FitSolver result and FitVisualizer layout for the current order items.
       </p>
       <div className="cut-line my-5" />
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Boxes" value={boxCount} />
         <Stat label="Items packed" value={itemsPacked} />
         <Stat label="Rejected" value={rejectedCount} warning={rejectedCount > 0} />
         <Stat label="Fill rate" value={`${Math.round(fillRate * 1000) / 10}%`} />
+        <Stat label="Execution time" value={formatSolveTime(solveTime)} />
       </div>
 
       {solution && <UnpackedItems rejects={solution.rejects} />}

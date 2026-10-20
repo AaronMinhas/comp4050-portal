@@ -36,6 +36,7 @@ const order = (status = 'OPTIMISED', rejectedCount = 3, id = 'ORD-001') => ({
 });
 const solution = (rejectedCount = 3) => ({
   solution_id: `solution-${rejectedCount}`,
+  solver: { elapsed_ms: 1250 },
   metrics: { fill_rate: 0.5 },
   rejects: Array.from({ length: rejectedCount }, () => ({ ...rejectedItem })),
   cartons: [{
@@ -49,6 +50,7 @@ const solution = (rejectedCount = 3) => ({
 });
 const summary = (rejectedCount = 3) => ({
   BoxCount: 1, ItemsPacked: 1, FillRate: 0.5,
+  SolveTimeMs: 1250,
   Rejected: Array.from({ length: rejectedCount }, () => ({
     ItemCode: 'TOO-BIG', Reason: 'NO_FITTING_CARTON', Detail: rejectedItem.message,
   })),
@@ -65,6 +67,11 @@ function text(node) {
 
 function buttons(label) {
   return page.root.findAllByType('button').filter((button) => text(button) === label);
+}
+
+function executionTime() {
+  const label = page.root.findAllByType('p').find((node) => text(node) === 'Execution time');
+  return label ? text(label.parent.findAllByType('p')[1]) : null;
 }
 
 function expectStatus(label) {
@@ -347,5 +354,93 @@ describe('direct draft optimisation', () => {
     expectStatus('Rejected');
     expect(buttons('Finalise Order')[0].props.disabled).toBe(true);
     expect(text(page.root)).toContain('2 items were not packed');
+  });
+});
+
+describe('optimisation execution time', () => {
+  it.each(['USER', 'SUPERVISOR', 'ADMINISTRATOR'])('shows saved Solver time for a %s', async (role) => {
+    useApp.mockReturnValue({ identity: { role }, refreshOrders });
+    await mount();
+
+    expect(executionTime()).toBe('1.25 s');
+  });
+
+  it('updates the execution time after re-optimisation', async () => {
+    await mount();
+    expect(executionTime()).toBe('1.25 s');
+    api.solveOrder.mockResolvedValue({ ...solution(0), solver: { elapsed_ms: 65400 } });
+    api.getSolutionSummary.mockResolvedValue({ ...summary(0), SolveTimeMs: 65400 });
+
+    await reoptimise();
+
+    expect(executionTime()).toBe('1 min 5 s');
+  });
+
+  it('uses the latest Solver time when the follow-up summary cannot load', async () => {
+    await mount();
+    api.solveOrder.mockResolvedValue({ ...solution(0), solver: { elapsed_ms: 42 } });
+    api.getSolutionSummary.mockRejectedValue(new Error('Summary unavailable'));
+
+    await reoptimise();
+
+    expect(executionTime()).toBe('42 ms');
+  });
+
+  it('uses the summary time if the solution document cannot load', async () => {
+    api.getSolution.mockRejectedValue(new Error('Solution unavailable'));
+    api.getSolutionSummary.mockResolvedValue({ ...summary(), SolveTimeMs: 2300 });
+
+    await mount();
+
+    expect(executionTime()).toBe('2.3 s');
+  });
+
+  it('keeps the last saved time if re-optimisation fails', async () => {
+    await mount();
+    api.solveOrder.mockRejectedValue(new Error('Solver unavailable'));
+
+    await reoptimise();
+
+    expect(executionTime()).toBe('1.25 s');
+  });
+
+  it('preserves a valid zero duration instead of replacing it with summary data', async () => {
+    api.getSolution.mockResolvedValue({ ...solution(), solver: { elapsed_ms: 0 } });
+
+    await mount();
+
+    expect(executionTime()).toBe('<1 ms');
+  });
+
+  it('does not invent an execution time for older results without timing data', async () => {
+    const savedSolution = solution();
+    const savedSummary = summary();
+    delete savedSolution.solver;
+    delete savedSummary.SolveTimeMs;
+    api.getSolution.mockResolvedValue(savedSolution);
+    api.getSolutionSummary.mockResolvedValue(savedSummary);
+
+    await mount();
+
+    expect(executionTime()).toBe('Unavailable');
+  });
+
+  it('does not show a result time on an unsolved draft', async () => {
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+
+    await mount();
+
+    expect(executionTime()).toBeNull();
+  });
+
+  it('keeps execution time visible after finalisation', async () => {
+    api.getOrder.mockResolvedValue(order('FINAL', 0));
+    api.getSolution.mockResolvedValue(solution(0));
+    api.getSolutionSummary.mockResolvedValue(summary(0));
+
+    await mount();
+
+    expectStatus('Final');
+    expect(executionTime()).toBe('1.25 s');
   });
 });
