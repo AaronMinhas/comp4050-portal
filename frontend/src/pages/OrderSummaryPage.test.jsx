@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import * as api from '../api/client.js';
 import OrderSummaryPage from './OrderSummaryPage.jsx';
+import OrderEditPage from './OrderEditPage.jsx';
 
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to, ...props }) => <a href={to} {...props}>{children}</a>,
@@ -20,6 +21,10 @@ vi.mock('../api/client.js', () => ({
   finaliseOrder: vi.fn(),
   solveOrder: vi.fn(),
   submitOrder: vi.fn(),
+  archiveOrder: vi.fn(),
+  holdOrder: vi.fn(),
+  resumeOrder: vi.fn(),
+  deleteOrder: vi.fn(),
   visualiserUrl: vi.fn(),
 }));
 
@@ -440,7 +445,60 @@ describe('optimisation execution time', () => {
 
     await mount();
 
-    expectStatus('Final');
+    expectStatus('Finalised');
     expect(executionTime()).toBe('1.25 s');
+  });
+});
+
+describe('backlog and archived order details', () => {
+  it.each(['DRAFT', 'AWAITING_OPTIMISATION', 'OPTIMISED'])('keeps an on-hold %s order paused while preserving its progress', async (status) => {
+    api.getOrder.mockResolvedValue({ ...order(status, status === 'OPTIMISED' ? 3 : 0), HeldAt: '2026-10-20T00:00:00Z' });
+    await mount();
+
+    expect(text(page.root)).toContain('Order on hold');
+    for (const label of ['Edit order', 'Run Optimisation', 'Submit for Optimisation', 'Re-optimise', 'Finalise Order']) {
+      expect(buttons(label)).toHaveLength(0);
+    }
+    expect(buttons('Resume')).toHaveLength(1);
+    expect(buttons('Resume')[0].props.className).toContain('bg-brand-500');
+    expect(page.root.findByProps({ 'aria-label': 'Actions for ORD-001' }).findAllByType('details')).toHaveLength(0);
+    expect(buttons('Delete')[0].props.disabled).toBe(false);
+    if (status === 'OPTIMISED') expect(executionTime()).toBe('1.25 s');
+  });
+
+  it('moves an order to backlog and resumes it with its original actions', async () => {
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+    await mount();
+    api.holdOrder.mockResolvedValue({ ...order('DRAFT', 0), HeldAt: '2026-10-20T00:00:00Z' });
+    api.getOrder.mockResolvedValue({ ...order('DRAFT', 0), HeldAt: '2026-10-20T00:00:00Z' });
+
+    await act(async () => { await buttons('Hold')[0].props.onClick(); });
+
+    expect(text(page.root)).toContain('Order on hold');
+    expect(buttons('Run Optimisation')).toHaveLength(0);
+    api.resumeOrder.mockResolvedValue(order('DRAFT', 0));
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+
+    await act(async () => { await buttons('Resume')[0].props.onClick(); });
+
+    expect(buttons('Run Optimisation')[0].props.disabled).toBe(false);
+    expect(refreshOrders).toHaveBeenCalled();
+  });
+
+  it('prevents editing an order on hold through its direct edit URL', async () => {
+    api.getOrder.mockResolvedValue({ ...order('DRAFT', 0), HeldAt: '2026-10-20T00:00:00Z' });
+    await act(async () => { page = create(<OrderEditPage />); });
+    expect(text(page.root)).toContain('Resume it before editing');
+    expect(page.root.findAllByType('input')).toHaveLength(0);
+  });
+
+  it('keeps archived finalised results readable with no management actions', async () => {
+    api.getOrder.mockResolvedValue({ ...order('FINAL', 0), ArchivedAt: '2026-10-20T00:00:00Z' });
+    await mount();
+    expect(text(page.root)).toContain('archived and read-only');
+    expect(executionTime()).toBe('1.25 s');
+    expect(buttons('Resume')).toHaveLength(0);
+    expect(buttons('Delete')).toHaveLength(0);
+    expect(buttons('Archive')).toHaveLength(0);
   });
 });

@@ -13,7 +13,7 @@ from app import boxes as box_inventory
 from app import store
 from app.auth import get_current_user, require_solver_user
 from app.boxes import active_box_types
-from app.errors import OrderNotFoundError, OrderStatusConflictError
+from app.errors import ARCHIVED_ORDER_IS_READ_ONLY, HELD_ORDER_IS_READ_ONLY, OrderNotFoundError, OrderStatusConflictError
 from app.models import PortalUser, StoredOrder, VisualizerHandoff
 from app.solver_adapter import to_solver_request
 from app.visualizer_tokens import create_token, solution_digest, verify_token
@@ -48,6 +48,10 @@ def solve_order(
     _user: Annotated[PortalUser, Depends(require_solver_user)],
 ) -> dict:
     stored = _require_order(order_id)
+    if stored.held_at is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=HELD_ORDER_IS_READ_ONLY)
+    if stored.archived_at is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=ARCHIVED_ORDER_IS_READ_ONLY)
     if stored.status not in store.SOLVABLE_ORDER_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -118,9 +122,9 @@ def get_solution(
 
 
 def _inventory_feasibility(order_id: str, document: dict) -> dict | None:
-    """Return null after finalisation, when stock has already been consumed."""
+    """Inventory advice applies only to active, unfinalised orders."""
     stored = store.find_order(order_id)
-    if stored is None or stored.status == "FINAL":
+    if stored is None or stored.status == "FINAL" or stored.archived_at is not None or stored.held_at is not None:
         return None
     return box_inventory.assess_solution_inventory(document).model_dump(by_alias=True)
 

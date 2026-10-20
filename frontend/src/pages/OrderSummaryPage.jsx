@@ -4,6 +4,8 @@ import { useApp } from '../context/AppContext.jsx';
 import ItemsTable from '../components/orders/ItemsTable.jsx';
 import PackingDetails, { UnpackedItems } from '../components/orders/PackingDetails.jsx';
 import InventoryFeasibilityWarning from '../components/orders/InventoryFeasibilityWarning.jsx';
+import OrderManagementActions from '../components/orders/OrderManagementActions.jsx';
+import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx';
 import Button from '../components/common/Button.jsx';
 import {
   getOrder as fetchOrder,
@@ -16,8 +18,8 @@ import {
   visualiserUrl,
 } from '../api/client.js';
 import { formatCreated, orderTotals } from '../lib/orders.js';
-import { orderStatusLabel, orderStatusStyle } from '../lib/orderStatus.js';
-import { canRunSolver } from '../lib/roles.js';
+import { orderStatusLabel } from '../lib/orderStatus.js';
+import { canManageOrders, canRunSolver } from '../lib/roles.js';
 import { formatSolveTime } from '../lib/solveTime.js';
 
 export default function OrderSummaryPage() {
@@ -36,6 +38,7 @@ export default function OrderSummaryPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [solveCount, setSolveCount] = useState(0);
   const [actionPending, setActionPending] = useState(false);
+  const [managementPending, setManagementPending] = useState(false);
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [showReoptimiseConfirm, setShowReoptimiseConfirm] = useState(false);
   const [showFinaliseConfirm, setShowFinaliseConfirm] = useState(false);
@@ -47,6 +50,7 @@ export default function OrderSummaryPage() {
     setSummary(null);
     setSolution(null);
     setOptimising(false);
+    setManagementPending(false);
     setPackError(null);
     setSuccessMessage('');
     try {
@@ -80,14 +84,14 @@ export default function OrderSummaryPage() {
   }, [load]);
 
   useEffect(() => {
-    if (!order || optimising || actionPending) return undefined;
+    if (!order || optimising || actionPending || managementPending) return undefined;
     const refresh = async () => {
       await load();
       await refreshOrders();
     };
     window.addEventListener('focus', refresh);
     return () => window.removeEventListener('focus', refresh);
-  }, [load, Boolean(order), optimising, actionPending, refreshOrders]);
+  }, [load, Boolean(order), optimising, actionPending, managementPending, refreshOrders]);
 
   const submit = async () => {
     setActionPending(true);
@@ -176,8 +180,11 @@ export default function OrderSummaryPage() {
 
   const totals = orderTotals(order.Items);
   const rejectedCount = solution?.rejects?.length ?? order.RejectedCount ?? 0;
+  const archived = Boolean(order.ArchivedAt);
+  const held = Boolean(order.HeldAt);
+  const ordersUrl = held ? '/orders/backlog' : archived ? '/orders/archived' : '/orders';
   const feasibility =
-    order.Status === 'OPTIMISED' ? summary?.InventoryFeasibility ?? null : null;
+    !archived && !held && order.Status === 'OPTIMISED' ? summary?.InventoryFeasibility ?? null : null;
   const editOrder = () => {
     if (order.Status === 'OPTIMISED') {
       setShowEditWarning(true);
@@ -189,8 +196,8 @@ export default function OrderSummaryPage() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <Link to="/orders" className="text-sm text-ink-400 hover:text-ink-700">
-          ← Back to orders
+        <Link to={ordersUrl} className="text-sm text-ink-400 hover:text-ink-700">
+          ← Back to {held ? 'orders on hold' : archived ? 'archive' : 'orders'}
         </Link>
       </div>
 
@@ -206,12 +213,12 @@ export default function OrderSummaryPage() {
             <p className="mt-1 text-sm text-ink-400">
               Created {formatCreated(order.CreatedAt)}
             </p>
+            {order.FinalisedAt && <p className="mt-1 text-sm text-ink-400">Finalised {formatCreated(order.FinalisedAt)}</p>}
           </div>
-          <span
-            className={`rounded-sm px-3 py-1 text-sm font-medium ${orderStatusStyle(order.Status, rejectedCount)}`}
-          >
-            {orderStatusLabel(order.Status, rejectedCount)}
-          </span>
+          <OrderStatusBadge
+            orderId={order.OrderId} status={order.Status} rejectedCount={rejectedCount}
+            rejections={solution?.rejects ?? summary?.Rejected}
+          />
         </div>
 
         <div className="cut-line my-5" />
@@ -224,9 +231,11 @@ export default function OrderSummaryPage() {
       </div>
 
       <LifecycleActions
+        archived={archived}
+        held={held}
         status={order.Status}
         rejectedCount={rejectedCount}
-        pending={actionPending || optimising}
+        pending={actionPending || optimising || managementPending}
         optimising={optimising}
         finalising={actionPending && order.Status === 'OPTIMISED'}
         error={packError}
@@ -238,6 +247,16 @@ export default function OrderSummaryPage() {
         canOptimise={canRunSolver(identity.role)}
         successMessage={successMessage}
         feasibility={feasibility}
+        managementActions={canManageOrders(identity.role) && !archived ? (
+          <OrderManagementActions
+            key={order.OrderId}
+            order={order}
+            disabled={actionPending || optimising}
+            onPendingChange={setManagementPending}
+            onChanged={async () => { await load(); await refreshOrders(); }}
+            onDeleted={async () => { await refreshOrders(); navigate(ordersUrl); }}
+          />
+        ) : null}
       />
 
       <div className="mt-6">
@@ -254,7 +273,7 @@ export default function OrderSummaryPage() {
       />
 
       <div className="mt-6 flex justify-end gap-3">
-        <Link to="/orders">
+        <Link to={ordersUrl}>
           <Button variant="secondary">Done</Button>
         </Link>
       </div>
@@ -298,6 +317,8 @@ function Stat({ label, value, warning = false }) {
 }
 
 function LifecycleActions({
+  archived,
+  held,
   status,
   rejectedCount,
   pending,
@@ -312,13 +333,20 @@ function LifecycleActions({
   canOptimise,
   successMessage,
   feasibility,
+  managementActions,
 }) {
   const inventoryIsShort = Boolean(feasibility) && !feasibility.Sufficient;
-  const hasRejects = status === 'OPTIMISED' && rejectedCount > 0;
+  const hasRejects = !archived && !held && status === 'OPTIMISED' && rejectedCount > 0;
   let message;
   let primaryAction;
 
-  if (status === 'DRAFT') {
+  if (archived) {
+    message = 'This finalised order is archived and read-only. Its items and packing result are retained for reference.';
+  } else if (held) {
+    message = canOptimise
+      ? 'This order is paused. Select Resume to return it to Active orders and continue where you left off. Your items and packing result are saved.'
+      : 'This order is paused. Ask a Supervisor or Administrator to resume it. Its items and packing result are saved.';
+  } else if (status === 'DRAFT') {
     message = canOptimise
       ? 'This draft order can be edited or optimised directly.'
       : 'This order can still be edited before it is submitted for optimisation.';
@@ -370,27 +398,34 @@ function LifecycleActions({
       );
     }
   } else {
-    message = 'This order has been finalised and is now read-only.';
+    message = 'This order has been finalised and is now read-only. It will be archived automatically one month after finalisation.';
   }
 
   return (
-    <section className="mt-6 rounded-sm border border-ink-100 bg-white p-5">
+    <section className={`mt-6 rounded-sm border p-5 ${held ? 'border-amber-200 bg-amber-50' : 'border-ink-100 bg-white'}`}>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <h3 className={`font-display text-lg font-semibold ${hasRejects ? 'text-red-700' : 'text-ink-700'}`}>
-            {orderStatusLabel(status, rejectedCount)}
+            {held ? 'Order on hold' : archived ? 'Archived' : orderStatusLabel(status, rejectedCount)}
           </h3>
-          <p className={`mt-1 text-sm ${hasRejects ? 'text-red-700' : 'text-ink-400'}`}>{message}</p>
+          <p className={`mt-1 text-sm ${hasRejects ? 'text-red-700' : 'text-ink-500'}`}>{message}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {status !== 'FINAL' && (
+          {!archived && !held && status !== 'FINAL' && (
             <Button variant="secondary" onClick={onEdit} disabled={pending}>
               Edit order
             </Button>
           )}
           {primaryAction}
+          {(held || status === 'FINAL') && managementActions}
         </div>
       </div>
+      {!held && status !== 'FINAL' && managementActions && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-ink-100 pt-4">
+          <p className="text-sm text-ink-500">Need to come back later? Put this order on hold.</p>
+          {managementActions}
+        </div>
+      )}
       {error && (
         <p className="mt-4 rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error.message}

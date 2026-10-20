@@ -16,7 +16,7 @@ describe('order rejection status', () => {
   it.each([
     ['DRAFT', 'Draft'],
     ['AWAITING_OPTIMISATION', 'Awaiting Optimisation'],
-    ['FINAL', 'Final'],
+    ['FINAL', 'Finalised'],
   ])('preserves the %s lifecycle label', (status, label) => {
     expect(orderStatusLabel(status, 0)).toBe(label);
     expect(orderStatusStyle(status, 0)).not.toContain('red');

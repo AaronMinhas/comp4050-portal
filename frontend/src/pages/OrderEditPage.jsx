@@ -38,6 +38,17 @@ export default function OrderEditPage() {
     return <PageMessage>{error?.message || 'Order not found'}</PageMessage>;
   }
 
+  if (order.HeldAt || order.ArchivedAt) {
+    return (
+      <PageMessage>
+        <p>{order.HeldAt ? 'This order is on hold. Resume it before editing.' : 'Archived finalised orders are read-only.'}</p>
+        <Button className="mt-4" variant="secondary" onClick={() => navigate(`/orders/${id}`)}>
+          Return to order
+        </Button>
+      </PageMessage>
+    );
+  }
+
   if (order.Status === 'FINAL') {
     return (
       <PageMessage>

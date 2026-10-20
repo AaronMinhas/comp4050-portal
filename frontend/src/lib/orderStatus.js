@@ -2,7 +2,7 @@ export const ORDER_STATUS_LABELS = {
   DRAFT: 'Draft',
   AWAITING_OPTIMISATION: 'Awaiting Optimisation',
   OPTIMISED: 'Optimised',
-  FINAL: 'Final',
+  FINAL: 'Finalised',
 };
 
 export const ORDER_STATUS_STYLES = {

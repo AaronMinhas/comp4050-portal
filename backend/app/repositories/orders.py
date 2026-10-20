@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -16,7 +16,7 @@ from app.db.models import (
     SolutionRecord,
 )
 from app.errors import OrderNotFoundError
-from app.models import Item, Order, OrderStatus, StoredOrder
+from app.models import Item, Order, OrderStatus, OrderView, StoredOrder
 from app.order_references import format_order_reference
 
 
@@ -45,6 +45,9 @@ def _to_stored_order(record: OrderRecord, rejected_count: int = 0) -> StoredOrde
         Reference=record.reference,
         Status=record.status,
         RejectedCount=rejected_count,
+        ArchivedAt=record.archived_at,
+        HeldAt=record.held_at,
+        FinalisedAt=record.finalised_at,
         CreatedAt=record.created_at.astimezone(timezone.utc),
         Items=[_to_item(item) for item in record.items],
     )
@@ -121,13 +124,48 @@ def _orders_with_rejected_count():
     )
 
 
-def list_orders(session: Session) -> list[StoredOrder]:
+def list_orders(session: Session, *, view: OrderView = "active") -> list[StoredOrder]:
+    filters = {
+        "active": OrderRecord.archived_at.is_(None) & OrderRecord.held_at.is_(None),
+        "backlog": OrderRecord.held_at.is_not(None),
+        "archived": OrderRecord.archived_at.is_not(None),
+    }
     rows = session.execute(
-        _orders_with_rejected_count().order_by(
+        _orders_with_rejected_count().where(
+            filters[view]
+        ).order_by(
             OrderRecord.created_at.desc(), OrderRecord.order_number.desc()
         )
     ).all()
     return [_to_stored_order(record, rejected_count) for record, rejected_count in rows]
+
+
+def set_archived(session: Session, record: OrderRecord) -> None:
+    record.archived_at = record.archived_at or datetime.now(timezone.utc)
+    session.flush()
+
+
+def set_held(session: Session, record: OrderRecord, held: bool) -> None:
+    record.held_at = (record.held_at or datetime.now(timezone.utc)) if held else None
+    session.flush()
+
+
+def archive_due_orders(session: Session, now: datetime) -> int:
+    """One calendar month from finalisation, including month-end rollover."""
+    result = session.execute(
+        update(OrderRecord).where(
+            OrderRecord.status == "FINAL",
+            OrderRecord.archived_at.is_(None),
+            OrderRecord.finalised_at + text("INTERVAL '1 month'") <= now,
+        ).values(archived_at=now).execution_options(synchronize_session=False)
+    )
+    return result.rowcount
+
+
+def delete_order(session: Session, record: OrderRecord) -> None:
+    """Foreign keys cascade to this order's items and saved solution only."""
+    session.delete(record)
+    session.flush()
 
 
 def replace_items(session: Session, record: OrderRecord, items: Iterable[Item]) -> None:
@@ -140,11 +178,12 @@ def replace_items(session: Session, record: OrderRecord, items: Iterable[Item]) 
 
 def set_status(session: Session, record: OrderRecord, status: OrderStatus) -> None:
     record.status = status
+    record.finalised_at = (record.finalised_at or datetime.now(timezone.utc)) if status == "FINAL" else None
 
 
 def write_order(session: Session, stored: StoredOrder) -> StoredOrder:
     record = lock_record(session, stored.order_id)
-    record.status = stored.status
+    set_status(session, record, stored.status)
     replace_items(session, record, stored.items)
     session.flush()
     return _to_stored_order(record)

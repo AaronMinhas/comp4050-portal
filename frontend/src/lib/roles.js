@@ -26,3 +26,7 @@ export function canManageBoxInventory(role) {
 export function canManageUsers(role) {
   return OPERATIONAL_MANAGER_ROLES.has(role);
 }
+
+export function canManageOrders(role) {
+  return OPERATIONAL_MANAGER_ROLES.has(role);
+}

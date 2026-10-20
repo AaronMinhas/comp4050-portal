@@ -20,6 +20,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 OrderStatus = Literal["DRAFT", "AWAITING_OPTIMISATION", "OPTIMISED", "FINAL"]
+OrderView = Literal["active", "backlog", "archived"]
 
 # Keep aligned with ITEM_TEXT_LIMITS in frontend/src/lib/itemValidation.js.
 MAX_ITEM_CODE_LENGTH = 32
@@ -167,6 +168,9 @@ class StoredOrder(Order):
     reference: str = Field(alias="Reference", min_length=1)
     status: OrderStatus = Field(default="DRAFT", alias="Status")
     rejected_count: int = Field(default=0, alias="RejectedCount", ge=0)
+    archived_at: datetime | None = Field(default=None, alias="ArchivedAt")
+    held_at: datetime | None = Field(default=None, alias="HeldAt")
+    finalised_at: datetime | None = Field(default=None, alias="FinalisedAt")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), alias="CreatedAt"
     )

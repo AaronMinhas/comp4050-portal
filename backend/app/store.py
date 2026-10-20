@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from sqlalchemy import text
 
 from app.database import session_scope
-from app.errors import OrderNotFoundError, OrderStatusConflictError
-from app.models import Item, Order, StoredOrder
+from app.errors import ARCHIVED_ORDER_IS_READ_ONLY, HELD_ORDER_IS_READ_ONLY, OrderNotFoundError, OrderStatusConflictError
+from app.models import Item, Order, OrderView, StoredOrder
 from app.repositories import orders as order_repository
 from app.repositories import solutions as solution_repository
 
@@ -31,10 +33,50 @@ def find_order(order_id: str) -> StoredOrder | None:
         return order_repository.find_order(session, order_id)
 
 
-def list_orders() -> list[StoredOrder]:
-    """Newest first."""
+def list_orders(*, view: OrderView = "active") -> list[StoredOrder]:
+    """Active orders, paused backlog, or finalised archive, newest first."""
     with session_scope() as session:
-        return order_repository.list_orders(session)
+        return order_repository.list_orders(session, view=view)
+
+
+def archive_order(order_id: str) -> StoredOrder:
+    with session_scope() as session:
+        record = order_repository.lock_record(session, order_id)
+        if record.status != "FINAL":
+            raise OrderStatusConflictError("Only finalised orders can be archived. Put unfinished orders on hold instead.")
+        order_repository.set_archived(session, record)
+        return order_repository.find_order(session, order_id)
+
+
+def hold_order(order_id: str) -> StoredOrder:
+    with session_scope() as session:
+        record = order_repository.lock_record(session, order_id)
+        if record.status == "FINAL":
+            raise OrderStatusConflictError("Finalised orders cannot be put on hold")
+        order_repository.set_held(session, record, True)
+        return order_repository.find_order(session, order_id)
+
+
+def resume_order(order_id: str) -> StoredOrder:
+    with session_scope() as session:
+        record = order_repository.lock_record(session, order_id)
+        if record.status == "FINAL":
+            raise OrderStatusConflictError("Finalised orders cannot be resumed")
+        order_repository.set_held(session, record, False)
+        return order_repository.find_order(session, order_id)
+
+
+def archive_due_orders(*, now: datetime | None = None) -> int:
+    with session_scope() as session:
+        return order_repository.archive_due_orders(session, now or datetime.now(timezone.utc))
+
+
+def delete_order(order_id: str) -> None:
+    with session_scope() as session:
+        record = order_repository.lock_record(session, order_id)
+        if record.status == "FINAL":
+            raise OrderStatusConflictError("Finalised orders cannot be permanently deleted")
+        order_repository.delete_order(session, record)
 
 
 def update_order(stored: StoredOrder) -> StoredOrder:
@@ -45,6 +87,10 @@ def update_order(stored: StoredOrder) -> StoredOrder:
 def submit_order(order_id: str) -> StoredOrder:
     with session_scope() as session:
         record = order_repository.lock_record(session, order_id)
+        if record.held_at is not None:
+            raise OrderStatusConflictError(HELD_ORDER_IS_READ_ONLY)
+        if record.archived_at is not None:
+            raise OrderStatusConflictError(ARCHIVED_ORDER_IS_READ_ONLY)
         if record.status != "DRAFT":
             raise OrderStatusConflictError(ONLY_DRAFTS_CAN_BE_SUBMITTED)
         order_repository.set_status(session, record, "AWAITING_OPTIMISATION")
@@ -56,6 +102,10 @@ def replace_order_items(order_id: str, items: list[Item]) -> StoredOrder:
     """Replace items, reset to DRAFT, and discard the solution atomically."""
     with session_scope() as session:
         record = order_repository.lock_record(session, order_id)
+        if record.held_at is not None:
+            raise OrderStatusConflictError(HELD_ORDER_IS_READ_ONLY)
+        if record.archived_at is not None:
+            raise OrderStatusConflictError(ARCHIVED_ORDER_IS_READ_ONLY)
         if record.status == "FINAL":
             raise OrderStatusConflictError(FINAL_IS_READ_ONLY)
 
@@ -80,6 +130,10 @@ def save_solution_for_optimised_order(
     """Save the solution and mark the locked order OPTIMISED atomically."""
     with session_scope() as session:
         record = order_repository.lock_record(session, order_id)
+        if record.held_at is not None:
+            raise OrderStatusConflictError(HELD_ORDER_IS_READ_ONLY)
+        if record.archived_at is not None:
+            raise OrderStatusConflictError(ARCHIVED_ORDER_IS_READ_ONLY)
         if record.status not in SOLVABLE_ORDER_STATUSES:
             raise OrderStatusConflictError(ONLY_SOLVABLE_ORDERS_CAN_BE_OPTIMISED)
         if order_repository.order_to_api(record).items != expected_items:
@@ -113,6 +167,11 @@ def reset() -> None:
 
 
 __all__ = [
+    "archive_order",
+    "hold_order",
+    "resume_order",
+    "archive_due_orders",
+    "delete_order",
     "OrderNotFoundError",
     "OrderStatusConflictError",
     "find_order",

@@ -2,10 +2,10 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app import finalisation, store
-from app.auth import get_current_user, require_finalisation_user
+from app.auth import get_current_user, require_finalisation_user, require_order_manager
 from app.errors import (
     InventoryConsumptionError,
     OrderNotFoundError,
@@ -13,7 +13,7 @@ from app.errors import (
     SolutionHasRejectsError,
     SolutionNotFoundError,
 )
-from app.models import Order, PortalUser, StoredOrder
+from app.models import Order, OrderView, PortalUser, StoredOrder
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -130,8 +130,74 @@ def finalise_order(
 )
 def list_orders(
     _user: Annotated[PortalUser, Depends(get_current_user)],
+    view: OrderView = "active",
 ) -> list[StoredOrder]:
-    return store.list_orders()
+    return store.list_orders(view=view)
+
+
+@router.post(
+    "/{order_id}/archive", response_model=StoredOrder, response_model_exclude_none=True,
+    summary="Archive a finalised order early",
+)
+def archive_order(
+    order_id: str,
+    _user: Annotated[PortalUser, Depends(require_order_manager)],
+) -> StoredOrder:
+    try:
+        return store.archive_order(order_id)
+    except OrderNotFoundError as exc:
+        raise _not_found() from exc
+    except OrderStatusConflictError as exc:
+        raise _conflict(exc.detail) from exc
+
+
+@router.post(
+    "/{order_id}/hold", response_model=StoredOrder, response_model_exclude_none=True,
+    summary="Put an unfinished order on hold in the backlog",
+)
+def hold_order(
+    order_id: str,
+    _user: Annotated[PortalUser, Depends(require_order_manager)],
+) -> StoredOrder:
+    try:
+        return store.hold_order(order_id)
+    except OrderNotFoundError as exc:
+        raise _not_found() from exc
+    except OrderStatusConflictError as exc:
+        raise _conflict(exc.detail) from exc
+
+
+@router.post(
+    "/{order_id}/resume", response_model=StoredOrder, response_model_exclude_none=True,
+    summary="Resume an unfinished order from the backlog",
+)
+def resume_order(
+    order_id: str,
+    _user: Annotated[PortalUser, Depends(require_order_manager)],
+) -> StoredOrder:
+    try:
+        return store.resume_order(order_id)
+    except OrderNotFoundError as exc:
+        raise _not_found() from exc
+    except OrderStatusConflictError as exc:
+        raise _conflict(exc.detail) from exc
+
+
+@router.delete(
+    "/{order_id}", status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently delete an unfinished active or on-hold order",
+)
+def delete_order(
+    order_id: str,
+    _user: Annotated[PortalUser, Depends(require_order_manager)],
+) -> Response:
+    try:
+        store.delete_order(order_id)
+    except OrderNotFoundError as exc:
+        raise _not_found() from exc
+    except OrderStatusConflictError as exc:
+        raise _conflict(exc.detail) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(

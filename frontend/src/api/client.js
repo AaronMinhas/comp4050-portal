@@ -82,8 +82,24 @@ const asJson = (body, method = 'POST') => ({
   body: JSON.stringify(body),
 });
 
-export function listOrders() {
-  return request('/orders');
+export function listOrders({ view = 'active' } = {}) {
+  return request(view === 'active' ? '/orders' : `/orders?view=${encodeURIComponent(view)}`);
+}
+
+export function archiveOrder(orderId) {
+  return request(`/orders/${encodeURIComponent(orderId)}/archive`, { method: 'POST' });
+}
+
+export function holdOrder(orderId) {
+  return request(`/orders/${encodeURIComponent(orderId)}/hold`, { method: 'POST' });
+}
+
+export function resumeOrder(orderId) {
+  return request(`/orders/${encodeURIComponent(orderId)}/resume`, { method: 'POST' });
+}
+
+export function deleteOrder(orderId) {
+  return request(`/orders/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
 }
 
 export function createOrder({ items }) {

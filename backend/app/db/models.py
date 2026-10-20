@@ -9,6 +9,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Identity,
     Index,
@@ -73,6 +74,9 @@ class OrderRecord(Base):
     order_number: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
     reference: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     status: Mapped[str] = mapped_column(Text, nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    held_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finalised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )
@@ -96,6 +100,10 @@ class OrderRecord(Base):
             "length(btrim(reference)) > 0", name="orders_reference_not_blank"
         ),
         Index("orders_newest_first_idx", created_at.desc(), order_number.desc()),
+        CheckConstraint("archived_at is null or status = 'FINAL'", name="orders_only_finalised_are_archived"),
+        CheckConstraint("held_at is null or status <> 'FINAL'", name="orders_only_unfinished_are_held"),
+        Index("orders_pending_archive_idx", finalised_at,
+              postgresql_where=(status == "FINAL") & archived_at.is_(None)),
     )
 
 
