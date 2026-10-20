@@ -294,7 +294,7 @@ The current Portal API provides the following routes:
 | `GET` | `/orders/{id}` | Signed-in user | Retrieve an order |
 | `PUT` | `/orders/{id}` | Signed-in user | Replace an order's items |
 | `POST` | `/orders/{id}/submit` | Signed-in user | Submit a draft order for optimisation |
-| `POST` | `/orders/{id}/solve` | Supervisor or Administrator | Pack an order using FitSolver |
+| `POST` | `/orders/{id}/solve` | Supervisor or Administrator | Optimise a draft or submitted order, or re-optimise an existing result |
 | `POST` | `/orders/{id}/finalise` | Supervisor or Administrator | Finalise an order and consume inventory |
 | `GET` | `/orders/{id}/solution` | Signed-in user | Retrieve the packing solution |
 | `GET` | `/orders/{id}/solution/summary` | Signed-in user | Retrieve the packing summary |
@@ -447,6 +447,12 @@ their Supabase session remains cryptographically valid.
 
 Users can work with orders and read inventory. Supervisors additionally run the
 Solver, finalise orders, manage inventory, and manage USER accounts.
+Supervisors and Administrators can optimise Draft orders directly. Regular Users
+submit drafts for optimisation by a Supervisor or Administrator. A successful
+optimisation saves the result and marks the order Optimised in one transaction;
+a failed optimisation leaves its previous state unchanged. Finalisation remains
+a separate action. Results are discarded if the order's items change while the
+Solver is running, so a stale result cannot be saved against edited items.
 Administrators can also manage SUPERVISOR accounts. FastAPI prevents any change
 that would leave no active Administrator.
 

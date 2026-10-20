@@ -15,10 +15,10 @@ ONLY_DRAFTS_CAN_BE_SUBMITTED = (
     "Only draft orders can be submitted for optimisation"
 )
 ONLY_SOLVABLE_ORDERS_CAN_BE_OPTIMISED = (
-    "Only orders awaiting optimisation or already optimised can be solved"
+    "Only draft, awaiting optimisation or optimised orders can be solved"
 )
 
-_SOLVABLE_STATES = frozenset({"AWAITING_OPTIMISATION", "OPTIMISED"})
+SOLVABLE_ORDER_STATUSES = frozenset({"DRAFT", "AWAITING_OPTIMISATION", "OPTIMISED"})
 
 
 def save_order(order: Order) -> StoredOrder:
@@ -74,12 +74,19 @@ def save_solution(order_id: str, document: dict) -> dict:
         return solution_repository.save_solution(session, order_id, document)
 
 
-def save_solution_for_optimised_order(order_id: str, document: dict) -> dict:
+def save_solution_for_optimised_order(
+    order_id: str, document: dict, *, expected_items: list[Item]
+) -> dict:
     """Save the solution and mark the locked order OPTIMISED atomically."""
     with session_scope() as session:
         record = order_repository.lock_record(session, order_id)
-        if record.status not in _SOLVABLE_STATES:
+        if record.status not in SOLVABLE_ORDER_STATUSES:
             raise OrderStatusConflictError(ONLY_SOLVABLE_ORDERS_CAN_BE_OPTIMISED)
+        if order_repository.order_to_api(record).items != expected_items:
+            raise OrderStatusConflictError(
+                "This order was edited during optimisation. Run optimisation again "
+                "using the current items."
+            )
 
         solution_repository.save_solution(session, order_id, document)
         order_repository.set_status(session, record, "OPTIMISED")

@@ -4,11 +4,12 @@ import OrderItemsEditor from '../components/orders/OrderItemsEditor.jsx';
 import Button from '../components/common/Button.jsx';
 import { getOrder, updateOrder } from '../api/client.js';
 import { useApp } from '../context/AppContext.jsx';
+import { canRunSolver } from '../lib/roles.js';
 
 export default function OrderEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { refreshOrders } = useApp();
+  const { identity, refreshOrders } = useApp();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,9 @@ export default function OrderEditPage() {
     await refreshOrders();
     navigate(`/orders/${id}`);
   };
+  const nextStep = canRunSolver(identity.role)
+    ? 'You can optimise it directly after saving.'
+    : 'You will need to submit it for optimisation again.';
 
   return (
     <OrderItemsEditor
@@ -63,9 +67,9 @@ export default function OrderEditPage() {
       savingLabel="Saving..."
       notice={
         order.Status === 'OPTIMISED'
-          ? 'Editing this order will invalidate the current optimisation. You will need to submit and optimise the order again.'
+          ? `Editing this order will invalidate the current optimisation. ${nextStep}`
           : order.Status === 'AWAITING_OPTIMISATION'
-            ? 'Saving changes will return this order to Draft. It must be submitted again before optimisation.'
+            ? `Saving changes will return this order to Draft. ${nextStep}`
             : null
       }
     />

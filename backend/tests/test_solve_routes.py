@@ -6,7 +6,7 @@ from copy import deepcopy
 
 import pytest
 from fastapi.testclient import TestClient
-from fitsolver import portal
+from fitsolver import io, portal
 
 from app import boxes, database, store
 from app.boxes import active_box_types
@@ -393,16 +393,132 @@ def test_solver_request_carries_maximum_boxes(monkeypatch):
     ] == [("BOX-S", 5), ("BOX-M", None)]
 
 
-def test_draft_order_cannot_be_solved():
+@pytest.mark.parametrize("headers", [SUPERVISOR_HEADERS, ADMINISTRATOR_HEADERS])
+def test_manager_can_optimise_a_draft_directly_without_consuming_inventory(headers):
     order_id = create_order([an_item()])
+    original = client.get(f"/orders/{order_id}").json()
+    inventory_before = client.get("/boxes").json()
+
+    response = solve(order_id, headers)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["rejects"] == []
+    updated = client.get(f"/orders/{order_id}").json()
+    assert updated == {**original, "Status": "OPTIMISED"}
+    assert client.get(f"/orders/{order_id}/solution").json() == response.json()
+    assert client.get("/orders").json()[0] == updated
+    assert client.get("/boxes").json() == inventory_before
+
+
+def test_regular_user_cannot_optimise_a_draft_even_with_elevated_token_metadata(monkeypatch):
+    order_id = create_order([an_item()])
+
+    def must_not_solve(_request):
+        pytest.fail("A regular User must not execute Solver")
+
+    monkeypatch.setattr("app.routes.solve.solve_request", must_not_solve)
+    headers = auth_headers(Role.USER, extra_claims={
+        "user_metadata": {"role": "ADMINISTRATOR"},
+        "app_metadata": {"role": "SUPERVISOR"},
+    })
+
+    response = solve(order_id, headers)
+
+    assert response.status_code == 403
+    assert client.get(f"/orders/{order_id}").json()["Status"] == "DRAFT"
+    assert store.find_solution(order_id) is None
+    submit_order(order_id)
+    assert client.get(f"/orders/{order_id}").json()["Status"] == "AWAITING_OPTIMISATION"
+
+
+@pytest.mark.parametrize("headers", [SUPERVISOR_HEADERS, ADMINISTRATOR_HEADERS])
+@pytest.mark.parametrize(
+    "error, expected_status",
+    [(RuntimeError("Solver unavailable"), 500), (io.RequestError("Invalid request"), 422)],
+)
+def test_failed_direct_optimisation_preserves_the_draft(monkeypatch, headers, error, expected_status):
+    order_id = create_order([an_item()])
+    original = client.get(f"/orders/{order_id}").json()
+
+    def fail_solver(_request):
+        raise error
+
+    monkeypatch.setattr("app.routes.solve.solve_request", fail_solver)
+
+    response = solve(order_id, headers)
+
+    assert response.status_code == expected_status
+    assert client.get(f"/orders/{order_id}").json() == original
+    assert store.find_solution(order_id) is None
+
+
+def test_direct_optimisation_without_available_boxes_preserves_the_draft():
+    order_id = create_order([an_item()])
+    original = client.get(f"/orders/{order_id}").json()
+    boxes.reset_box_inventory()
 
     response = solve(order_id)
 
     assert response.status_code == 409
-    assert response.json()["detail"] == (
-        "Only orders awaiting optimisation or already optimised can be solved"
-    )
-    assert client.get(f"/orders/{order_id}").json()["Status"] == "DRAFT"
+    assert response.json()["detail"] == NO_AVAILABLE_BOXES_DETAIL
+    assert client.get(f"/orders/{order_id}").json() == original
+    assert store.find_solution(order_id) is None
+
+
+def test_direct_optimisation_with_rejected_items_saves_the_rejection_result():
+    order_id = create_order([an_item(Width=1200, Length=800, Depth=1000, Quantity=2)])
+
+    response = solve(order_id)
+
+    assert response.status_code == 200, response.text
+    assert len(response.json()["rejects"]) == 2
+    updated = client.get(f"/orders/{order_id}").json()
+    assert updated["Status"] == "OPTIMISED"
+    assert updated["RejectedCount"] == 2
+
+
+@pytest.mark.parametrize("initial_status", ["DRAFT", "AWAITING_OPTIMISATION", "OPTIMISED"])
+def test_editing_items_during_optimisation_discards_the_stale_result(monkeypatch, initial_status):
+    order_id = create_order([an_item()])
+    if initial_status != "DRAFT":
+        submit_order(order_id)
+    if initial_status == "OPTIMISED":
+        assert solve(order_id).status_code == 200
+    new_items = [an_item("CHANGED", Quantity=2)]
+
+    def edit_during_solve(_request):
+        assert client.put(f"/orders/{order_id}", json={"Items": new_items}).status_code == 200
+        return {"order_id": order_id, "cartons": [], "rejects": []}
+
+    monkeypatch.setattr("app.routes.solve.solve_request", edit_during_solve)
+
+    response = solve(order_id)
+
+    assert response.status_code == 409
+    assert "edited during optimisation" in response.json()["detail"]
+    updated = client.get(f"/orders/{order_id}").json()
+    assert updated["Status"] == "DRAFT"
+    assert updated["Items"][0]["ItemCode"] == "CHANGED"
+    assert updated["Items"][0]["Quantity"] == 2
+    assert store.find_solution(order_id) is None
+
+
+def test_a_final_order_cannot_be_overwritten_by_an_in_flight_optimisation(monkeypatch):
+    order_id = create_order([an_item()])
+    original = solve(order_id).json()
+
+    def finalise_during_solve(_request):
+        response = client.post(f"/orders/{order_id}/finalise", headers=SUPERVISOR_HEADERS)
+        assert response.status_code == 200, response.text
+        return {**original, "solution_id": "stale-replacement"}
+
+    monkeypatch.setattr("app.routes.solve.solve_request", finalise_during_solve)
+
+    response = solve(order_id)
+
+    assert response.status_code == 409
+    assert client.get(f"/orders/{order_id}").json()["Status"] == "FINAL"
+    assert store.find_solution(order_id) == original
 
 
 def test_solving_marks_awaiting_order_as_optimised():

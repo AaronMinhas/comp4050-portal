@@ -260,6 +260,7 @@ export default function OrderSummaryPage() {
 
       {showEditWarning && (
         <EditWarningModal
+          canOptimise={canRunSolver(identity.role)}
           onCancel={() => setShowEditWarning(false)}
           onContinue={() => navigate(`/orders/${id}/edit`)}
         />
@@ -317,8 +318,14 @@ function LifecycleActions({
   let primaryAction;
 
   if (status === 'DRAFT') {
-    message = 'This order can still be edited before it is submitted for optimisation.';
-    primaryAction = (
+    message = canOptimise
+      ? 'This draft order can be edited or optimised directly.'
+      : 'This order can still be edited before it is submitted for optimisation.';
+    primaryAction = canOptimise ? (
+      <Button onClick={onOptimise} disabled={pending}>
+        {pending ? 'Running...' : 'Run Optimisation'}
+      </Button>
+    ) : (
       <Button onClick={onSubmit} disabled={pending}>
         {pending ? 'Submitting...' : 'Submit for Optimisation'}
       </Button>
@@ -551,7 +558,7 @@ function FinaliseModal({ onCancel, onConfirm }) {
   );
 }
 
-function EditWarningModal({ onCancel, onContinue }) {
+function EditWarningModal({ onCancel, onContinue, canOptimise }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink-700/50 p-4"
@@ -564,8 +571,10 @@ function EditWarningModal({ onCancel, onContinue }) {
           Edit order and discard its optimisation result?
         </h2>
         <p className="mt-3 text-sm text-ink-500">
-          Editing this order will invalidate the current optimisation. You will need to
-          submit and optimise the order again.
+          Editing this order will invalidate the current optimisation and return it to Draft.
+          {' '}{canOptimise
+            ? 'You can optimise it directly after saving.'
+            : 'You will need to submit it for optimisation again.'}
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>

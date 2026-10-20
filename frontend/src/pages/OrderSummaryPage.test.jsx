@@ -261,6 +261,91 @@ describe('order rejection display and recovery', () => {
     expect(text(page.root)).toContain('Test ORD-002');
     expect(text(page.root)).not.toContain('Items not packed');
     expect(text(page.root)).not.toContain('Optimisation result');
-    expect(buttons('Submit for Optimisation')[0].props.disabled).toBe(false);
+    expect(buttons('Run Optimisation')[0].props.disabled).toBe(false);
+  });
+});
+
+describe('direct draft optimisation', () => {
+  it.each(['SUPERVISOR', 'ADMINISTRATOR'])('lets a %s optimise a draft without submitting it', async (role) => {
+    useApp.mockReturnValue({ identity: { role }, refreshOrders });
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+    api.solveOrder.mockResolvedValue(solution(0));
+    api.getSolutionSummary.mockResolvedValue(summary(0));
+    await mount();
+
+    expectStatus('Draft');
+    expect(buttons('Submit for Optimisation')).toHaveLength(0);
+    expect(buttons('Finalise Order')).toHaveLength(0);
+    await act(async () => { await buttons('Run Optimisation')[0].props.onClick(); });
+
+    expect(api.solveOrder).toHaveBeenCalledTimes(1);
+    expect(api.solveOrder).toHaveBeenCalledWith('ORD-001');
+    expect(api.submitOrder).not.toHaveBeenCalled();
+    expect(api.finaliseOrder).not.toHaveBeenCalled();
+    expectStatus('Optimised');
+    expect(buttons('Re-optimise')).toHaveLength(1);
+    expect(buttons('Finalise Order')[0].props.disabled).toBe(false);
+  });
+
+  it('keeps the Submit for Optimisation workflow for a regular User', async () => {
+    useApp.mockReturnValue({ identity: { role: 'USER' }, refreshOrders });
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+    api.submitOrder.mockResolvedValue(order('AWAITING_OPTIMISATION', 0));
+    await mount();
+
+    expect(buttons('Run Optimisation')).toHaveLength(0);
+    await act(async () => { await buttons('Submit for Optimisation')[0].props.onClick(); });
+
+    expect(api.submitOrder).toHaveBeenCalledTimes(1);
+    expect(api.submitOrder).toHaveBeenCalledWith('ORD-001');
+    expect(api.solveOrder).not.toHaveBeenCalled();
+    expectStatus('Awaiting Optimisation');
+    expect(buttons('Run Optimisation')).toHaveLength(0);
+    expect(text(page.root)).toContain('waiting for a Supervisor');
+  });
+
+  it.each(['SUPERVISOR', 'ADMINISTRATOR'])('preserves the draft and offers retry if a %s optimisation fails', async (role) => {
+    useApp.mockReturnValue({ identity: { role }, refreshOrders });
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+    api.solveOrder.mockRejectedValue(new Error('Solver unavailable'));
+    await mount();
+
+    await act(async () => { await buttons('Run Optimisation')[0].props.onClick(); });
+
+    expectStatus('Draft');
+    expect(text(page.root)).toContain('Solver unavailable');
+    expect(buttons('Run Optimisation')[0].props.disabled).toBe(false);
+    expect(buttons('Finalise Order')).toHaveLength(0);
+    expect(api.submitOrder).not.toHaveBeenCalled();
+    expect(api.finaliseOrder).not.toHaveBeenCalled();
+  });
+
+  it('disables draft actions while optimisation is pending', async () => {
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+    let finishSolve;
+    api.solveOrder.mockReturnValue(new Promise((resolve) => { finishSolve = resolve; }));
+    api.getSolutionSummary.mockResolvedValue(summary(0));
+    await mount();
+
+    await act(async () => { buttons('Run Optimisation')[0].props.onClick(); });
+
+    expect(buttons('Running...')[0].props.disabled).toBe(true);
+    expect(buttons('Edit order')[0].props.disabled).toBe(true);
+    expectStatus('Draft');
+    await act(async () => { finishSolve(solution(0)); });
+    expectStatus('Optimised');
+  });
+
+  it('shows Rejected if direct draft optimisation cannot pack every item', async () => {
+    api.getOrder.mockResolvedValue(order('DRAFT', 0));
+    api.solveOrder.mockResolvedValue(solution(2));
+    api.getSolutionSummary.mockResolvedValue(summary(2));
+    await mount();
+
+    await act(async () => { await buttons('Run Optimisation')[0].props.onClick(); });
+
+    expectStatus('Rejected');
+    expect(buttons('Finalise Order')[0].props.disabled).toBe(true);
+    expect(text(page.root)).toContain('2 items were not packed');
   });
 });

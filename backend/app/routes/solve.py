@@ -1,4 +1,4 @@
-"""Optimise submitted orders and expose the active solution."""
+"""Optimise draft or submitted orders and expose the active solution."""
 
 import logging
 from typing import Annotated
@@ -48,10 +48,10 @@ def solve_order(
     _user: Annotated[PortalUser, Depends(require_solver_user)],
 ) -> dict:
     stored = _require_order(order_id)
-    if stored.status not in {"AWAITING_OPTIMISATION", "OPTIMISED"}:
+    if stored.status not in store.SOLVABLE_ORDER_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Only orders awaiting optimisation or already optimised can be solved",
+            detail=store.ONLY_SOLVABLE_ORDERS_CAN_BE_OPTIMISED,
         )
 
     boxes = active_box_types()
@@ -78,9 +78,11 @@ def solve_order(
             detail=f"The packing service failed while solving {order_id}.",
         ) from exc
 
-    # The Solver ran without a lock, re-check state before replacing the result.
+    # The Solver ran without a lock; re-check state and items before saving.
     try:
-        return store.save_solution_for_optimised_order(order_id, document)
+        return store.save_solution_for_optimised_order(
+            order_id, document, expected_items=stored.items
+        )
     except OrderNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
