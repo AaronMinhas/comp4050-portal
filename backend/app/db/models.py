@@ -148,7 +148,7 @@ class OrderItemRecord(Base):
             name="order_items_dimensions_are_positive",
         ),
         CheckConstraint(
-            "weight > 0 and weight <= 32", name="order_items_weight_within_limits"
+            "weight > 0 and weight < 'Infinity'::numeric", name="order_items_weight_is_positive_finite"
         ),
         CheckConstraint(
             "box_group is null or length(btrim(box_group)) > 0",

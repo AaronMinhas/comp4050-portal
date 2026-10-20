@@ -1,9 +1,10 @@
 import React, { useId, useState } from 'react';
 import Field, { inputClass } from '../common/Field.jsx';
 import Button from '../common/Button.jsx';
+import InfoTooltip from '../common/InfoTooltip.jsx';
 import { emptyItemDraft } from '../../data/mockData.js';
 import {
-  MAX_ITEM_WEIGHT_KG,
+  itemWeightError,
   ITEM_TEXT_LIMITS,
   itemTextLimitError,
   normaliseItem,
@@ -16,6 +17,8 @@ export default function ItemEntryForm({
   initialItem,
   submitLabel = 'Add item to order',
   onCancel,
+  maxItemWeightKg = null,
+  checkingWeightLimit = false,
 }) {
   const formId = useId();
   const [draft, setDraft] = useState(() => ({
@@ -29,19 +32,18 @@ export default function ItemEntryForm({
     setDraft((d) => ({ ...d, [field]: value }));
   };
 
-  const weightTooHigh = weightExceedsLimit(draft.Weight);
+  const weightTooHigh = weightExceedsLimit(draft.Weight, maxItemWeightKg);
   const codeError = itemTextLimitError('ItemCode', draft.ItemCode);
   const referenceError = itemTextLimitError('ItemReference', draft.ItemReference);
 
   const handleAdd = (e) => {
     e.preventDefault();
+    if (checkingWeightLimit) return;
     const candidate = { ...draft };
-    const validationErrors = validateItemFields(candidate);
+    const validationErrors = validateItemFields(candidate, { maxItemWeightKg });
     if (validationErrors.length > 0) {
-      if (weightExceedsLimit(candidate.Weight)) {
-        setError(
-          `Item weight of ${candidate.Weight} kg exceeds the maximum allowed item weight of ${MAX_ITEM_WEIGHT_KG} kg. Reduce the weight or split it into multiple items.`
-        );
+      if (weightExceedsLimit(candidate.Weight, maxItemWeightKg)) {
+        setError(itemWeightError(candidate.Weight, maxItemWeightKg));
         return;
       }
       setError(
@@ -112,26 +114,41 @@ export default function ItemEntryForm({
             onChange={update('Depth')}
           />
         </Field>
-        <Field
-          label="Weight (kg) *"
-          hint={`Max ${MAX_ITEM_WEIGHT_KG} kg per item`}
-        >
-          <input
-            type="number"
-            min="0"
-            max={MAX_ITEM_WEIGHT_KG}
-            step="0.01"
-            className={inputClass(`font-mono ${weightTooHigh ? 'border-red-400 text-red-600' : ''}`)}
-            value={draft.Weight}
-            onChange={update('Weight')}
-            aria-invalid={weightTooHigh}
-          />
-        </Field>
+        <div>
+          <Field label="Weight (kg) *">
+            <input
+              type="number"
+              min="0"
+              max={maxItemWeightKg ?? undefined}
+              step="0.001"
+              className={inputClass(`font-mono ${weightTooHigh ? 'border-red-400 text-red-600' : ''}`)}
+              value={draft.Weight}
+              onChange={update('Weight')}
+              aria-invalid={weightTooHigh}
+              aria-describedby={weightTooHigh ? `${formId}-weight-error` : undefined}
+            />
+          </Field>
+          <div className="mt-1 flex items-center justify-center gap-1 text-xs text-ink-300">
+            {checkingWeightLimit ? 'Checking current boxes…' : (
+              <>
+                <span>{maxItemWeightKg === null ? 'No set limit' : `Max ${maxItemWeightKg} kg`}</span>
+                <InfoTooltip
+                  label="About the maximum item weight"
+                  iconSize={12}
+                  className="h-4 w-4 shrink-0 text-ink-400 hover:text-ink-700"
+                  description={maxItemWeightKg === null
+                    ? 'No weight limit is set for the current boxes.'
+                    : 'Based on available box capacity, minus the empty box’s weight.'}
+                />
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {weightTooHigh && (
-        <p className="text-sm text-red-600">
-          This item exceeds the {MAX_ITEM_WEIGHT_KG} kg maximum weight limit.
+        <p id={`${formId}-weight-error`} className="text-sm text-red-600">
+          {itemWeightError(draft.Weight, maxItemWeightKg)}
         </p>
       )}
 
@@ -166,7 +183,7 @@ export default function ItemEntryForm({
             Cancel
           </Button>
         )}
-        <Button type="submit" className={onCancel ? '' : 'w-full'} disabled={weightTooHigh || Boolean(codeError) || Boolean(referenceError)}>
+        <Button type="submit" className={onCancel ? '' : 'w-full'} disabled={checkingWeightLimit || weightTooHigh || Boolean(codeError) || Boolean(referenceError)}>
           {submitLabel}
         </Button>
       </div>

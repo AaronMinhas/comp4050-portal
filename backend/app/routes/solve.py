@@ -13,7 +13,8 @@ from app import boxes as box_inventory
 from app import store
 from app.auth import get_current_user, require_solver_user
 from app.boxes import active_box_types
-from app.errors import ARCHIVED_ORDER_IS_READ_ONLY, HELD_ORDER_IS_READ_ONLY, OrderNotFoundError, OrderStatusConflictError
+from app.errors import ARCHIVED_ORDER_IS_READ_ONLY, HELD_ORDER_IS_READ_ONLY, ItemWeightLimitError, OrderNotFoundError, OrderStatusConflictError
+from app.item_weights import validate_item_weights
 from app.models import PortalUser, StoredOrder, VisualizerHandoff
 from app.solver_adapter import to_solver_request
 from app.visualizer_tokens import create_token, solution_digest, verify_token
@@ -65,6 +66,10 @@ def solve_order(
             detail=NO_AVAILABLE_BOXES_DETAIL,
         )
 
+    try:
+        validate_item_weights(stored.items, boxes)
+    except ItemWeightLimitError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     request = to_solver_request(stored, boxes)
 
     try:

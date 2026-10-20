@@ -78,3 +78,57 @@ describe('item import character limits', () => {
     expect(onImport).not.toHaveBeenCalled();
   });
 });
+
+describe('dynamic weight capacity in forms and imports', () => {
+  it('accepts a heavier item and reacts when the current capacity changes', () => {
+    const onAdd = vi.fn();
+    act(() => { page = create(<ItemEntryForm initialItem={{ ...ITEM, Weight: 35 }} onAdd={onAdd} maxItemWeightKg={38} />); });
+    const weightInput = () => page.root.findAllByType('input').find((node) => node.props.step === '0.001');
+    expect(weightInput().props.max).toBe(38);
+    expect(weightInput().props['aria-invalid']).toBe(false);
+    act(() => { page.update(<ItemEntryForm initialItem={ITEM} onAdd={onAdd} maxItemWeightKg={30} />); });
+    expect(weightInput().props.max).toBe(30);
+    expect(weightInput().props['aria-invalid']).toBe(true);
+    expect(text(page.root)).toContain('30 kg per-item capacity');
+    expect(page.root.findByProps({ type: 'submit' }).props.disabled).toBe(true);
+    act(() => { weightInput().props.onChange({ target: { type: 'number', value: '30' } }); });
+    act(() => { page.root.findByType('form').props.onSubmit({ preventDefault: vi.fn() }); });
+    expect(onAdd).toHaveBeenCalledWith({ ...ITEM, Weight: 30 });
+  });
+
+  it('does not impose a max attribute when weight is unlimited', () => {
+    act(() => { page = create(<ItemEntryForm initialItem={{ ...ITEM, Weight: 80 }} onAdd={vi.fn()} />); });
+    const input = page.root.findAllByType('input').find((node) => node.props.step === '0.001');
+    expect(input.props.max).toBeUndefined();
+    expect(input.props['aria-invalid']).toBe(false);
+  });
+
+  it.each(['paste', 'upload'])('checks the same current capacity when importing by %s', async (method) => {
+    act(() => { page = create(<ItemJsonImport onImport={vi.fn()} maxItemWeightKg={38} />); });
+    const json = JSON.stringify([{ ...ITEM, Weight: 39 }]);
+    if (method === 'paste') {
+      act(() => { page.root.findByType('textarea').props.onChange({ target: { value: json } }); });
+      act(() => { page.root.findAllByType('button').find((node) => text(node) === 'Review pasted JSON').props.onClick(); });
+    } else {
+      await act(async () => {
+        await page.root.findByProps({ type: 'file' }).props.onChange({ target: { files: [{ name: 'heavy.json', text: async () => json }] } });
+      });
+    }
+    expect(text(page.root)).toContain('38 kg per-item capacity');
+    expect(page.root.findAllByProps({ role: 'dialog' })).toHaveLength(0);
+  });
+
+  it('revalidates an open import review when inventory capacity drops', () => {
+    const onImport = vi.fn();
+    act(() => { page = create(<ItemJsonImport onImport={onImport} maxItemWeightKg={38} />); });
+    act(() => { page.root.findByType('textarea').props.onChange({ target: { value: JSON.stringify([{ ...ITEM, Weight: 35 }]) } }); });
+    act(() => { page.root.findAllByType('button').find((node) => text(node) === 'Review pasted JSON').props.onClick(); });
+    expect(page.root.findAllByProps({ role: 'dialog' })).toHaveLength(1);
+    act(() => { page.update(<ItemJsonImport onImport={onImport} maxItemWeightKg={30} />); });
+    expect(text(page.root)).toContain('30 kg per-item capacity');
+    const confirm = page.root.findAllByType('button').find((node) => text(node) === 'Add 1 unit to order');
+    expect(confirm.props.disabled).toBe(true);
+    act(() => confirm.props.onClick());
+    expect(onImport).not.toHaveBeenCalled();
+  });
+});

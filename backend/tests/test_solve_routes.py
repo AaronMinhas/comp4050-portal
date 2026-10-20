@@ -151,7 +151,7 @@ def test_summary_reports_kilograms_for_the_order_page():
 
 
 def test_summary_lists_rejected_items_for_the_packer():
-    order_id = create_order([an_item("ITM-999", Width=1200, Length=800, Depth=1000, Weight=32.0)])
+    order_id = create_order([an_item("ITM-999", Width=1200, Length=800, Depth=1000, Weight=31.62)])
     submit_order(order_id)
     solve(order_id)
 
@@ -640,7 +640,7 @@ def test_solution_exposes_box_placements_and_rejects_to_all_viewers():
             Width=1200,
             Length=800,
             Depth=1000,
-            Weight=32.0,
+            Weight=31.62,
         ),
     ])
     submit_order(order_id)

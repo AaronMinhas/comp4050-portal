@@ -68,7 +68,7 @@ class Item(PortalModel):
     width: int = Field(alias="Width", gt=0)
     length: int = Field(alias="Length", gt=0)
     depth: int = Field(alias="Depth", gt=0)
-    weight: float = Field(alias="Weight", gt=0, le=32)
+    weight: float = Field(alias="Weight", gt=0, allow_inf_nan=False)
     box_group: str | None = Field(default=None, alias="BoxGroup", min_length=1)
     quantity: int = Field(default=1, alias="Quantity", ge=1)
 
@@ -88,14 +88,15 @@ class BoxType(PortalModel):
 
     MaximumBoxes is the quantity of this box type available to use. None means
     no limit; finalising an order subtracts the boxes used from a set quantity.
+    MaxWeight is the total packed weight, including the empty BoxWeight.
     """
 
     reference: str = Field(alias="Reference", min_length=1)
     width: float = Field(alias="Width", gt=0)
     length: float = Field(alias="Length", gt=0)
     depth: float = Field(alias="Depth", gt=0)
-    max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0)
-    box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0)
+    max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0, allow_inf_nan=False)
+    box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0, allow_inf_nan=False)
     active: bool = Field(default=True, alias="Active")
     maximum_boxes: int | None = Field(default=None, alias="MaximumBoxes", ge=0)
 
@@ -106,8 +107,8 @@ class BoxTypeUpdate(PortalModel):
     width: float = Field(alias="Width", gt=0)
     length: float = Field(alias="Length", gt=0)
     depth: float = Field(alias="Depth", gt=0)
-    max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0)
-    box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0)
+    max_weight: float | None = Field(default=None, alias="MaxWeight", gt=0, allow_inf_nan=False)
+    box_weight: float | None = Field(default=None, alias="BoxWeight", gt=0, allow_inf_nan=False)
     active: bool = Field(alias="Active")
     maximum_boxes: int | None = Field(default=None, alias="MaximumBoxes", ge=0)
 

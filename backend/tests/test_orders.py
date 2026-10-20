@@ -175,12 +175,12 @@ class TestCreateOrder:
 
         assert response.status_code == 201
 
-    def test_item_above_maximum_weight_is_rejected(self):
+    def test_heavier_drafts_can_be_prepared_before_inventory_is_configured(self):
         response = client.post(
             "/orders", json={"Items": [{**VALID_ITEM, "Weight": 32.01}]}
         )
 
-        assert response.status_code == 422
+        assert response.status_code == 201
 
     @pytest.mark.parametrize("value", ["ABC", "12", "ITM-12", "PART-123-A"])
     def test_item_code_is_stored_exactly_as_given(self, value):

@@ -9,6 +9,8 @@ from sqlalchemy import text
 from app.database import session_scope
 from app.errors import ARCHIVED_ORDER_IS_READ_ONLY, HELD_ORDER_IS_READ_ONLY, OrderNotFoundError, OrderStatusConflictError
 from app.models import Item, Order, OrderView, StoredOrder
+from app.item_weights import validate_item_weights
+from app.repositories import boxes as box_repository
 from app.repositories import orders as order_repository
 from app.repositories import solutions as solution_repository
 
@@ -25,6 +27,7 @@ SOLVABLE_ORDER_STATUSES = frozenset({"DRAFT", "AWAITING_OPTIMISATION", "OPTIMISE
 
 def save_order(order: Order) -> StoredOrder:
     with session_scope() as session:
+        validate_item_weights(order.items, box_repository.active_box_types(session))
         return order_repository.create_order(session, order)
 
 
@@ -93,6 +96,7 @@ def submit_order(order_id: str) -> StoredOrder:
             raise OrderStatusConflictError(ARCHIVED_ORDER_IS_READ_ONLY)
         if record.status != "DRAFT":
             raise OrderStatusConflictError(ONLY_DRAFTS_CAN_BE_SUBMITTED)
+        validate_item_weights(order_repository.order_to_api(record).items, box_repository.active_box_types(session))
         order_repository.set_status(session, record, "AWAITING_OPTIMISATION")
         session.flush()
         return order_repository.order_to_api(record)
@@ -108,6 +112,8 @@ def replace_order_items(order_id: str, items: list[Item]) -> StoredOrder:
             raise OrderStatusConflictError(ARCHIVED_ORDER_IS_READ_ONLY)
         if record.status == "FINAL":
             raise OrderStatusConflictError(FINAL_IS_READ_ONLY)
+
+        validate_item_weights(items, box_repository.active_box_types(session))
 
         order_repository.replace_items(session, record, items)
         order_repository.set_status(session, record, "DRAFT")

@@ -86,6 +86,10 @@ export function listOrders({ view = 'active' } = {}) {
   return request(view === 'active' ? '/orders' : `/orders?view=${encodeURIComponent(view)}`);
 }
 
+export function getItemWeightLimit() {
+  return request('/orders/item-weight-limit');
+}
+
 export function archiveOrder(orderId) {
   return request(`/orders/${encodeURIComponent(orderId)}/archive`, { method: 'POST' });
 }
