@@ -32,6 +32,21 @@ class Base(DeclarativeBase):
     pass
 
 
+class ManualHandlingSettingsRecord(Base):
+    __tablename__ = "manual_handling_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    warning_threshold_kg: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("id = 1", name="manual_handling_settings_singleton"),
+        CheckConstraint(
+            "warning_threshold_kg is null or (warning_threshold_kg > 0 and warning_threshold_kg < 'Infinity'::numeric)",
+            name="manual_handling_threshold_is_positive_finite",
+        ),
+    )
+
+
 class PortalUserRecord(Base):
     __tablename__ = "portal_users"
 

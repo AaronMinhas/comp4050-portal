@@ -123,6 +123,25 @@ afterEach(() => {
 });
 
 describe('order rejection display and recovery', () => {
+  it('shows handling warnings for a heavy packed box without rejecting or blocking the order', async () => {
+    useApp.mockReturnValue({ identity: { role: 'SUPERVISOR' }, refreshOrders, handlingSettings: { WarningThresholdKg: 20 } });
+    api.getOrder.mockResolvedValue({ ...order('OPTIMISED', 0), Items: [{ ...ITEM, Weight: 19.8 }] });
+    const packed = solution(0);
+    packed.cartons[0].contents_mass = 19800;
+    packed.cartons[0].tare_mass = 200;
+    api.getSolution.mockResolvedValue(packed);
+    api.getSolutionSummary.mockResolvedValue(summary(0));
+    await mount();
+    expectStatus('Optimised');
+    expect(text(page.root.findByProps({ 'aria-label': 'Heavy order' }))).toContain('Weight threshold reached.');
+    expect(text(page.root.findByProps({ 'aria-label': 'Packed box handling warnings' }))).toContain('20 kg');
+    expect(buttons('Finalise Order')[0].props.disabled).toBe(false);
+    useApp.mockReturnValue({ identity: { role: 'SUPERVISOR' }, refreshOrders, handlingSettings: { WarningThresholdKg: 25 } });
+    act(() => page.update(<OrderSummaryPage />));
+    expect(page.root.findAllByProps({ 'aria-label': 'Packed box handling warnings' })).toHaveLength(0);
+    expect(page.root.findAllByProps({ 'aria-label': 'Heavy order' })).toHaveLength(0);
+  });
+
   it.each(['USER', 'SUPERVISOR', 'ADMINISTRATOR'])('shows rejection status to a %s', async (role) => {
     useApp.mockReturnValue({ identity: { role }, refreshOrders });
     await mount();

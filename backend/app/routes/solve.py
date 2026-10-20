@@ -160,6 +160,7 @@ def get_solution_summary(
                 "BoxType": carton["sku"],
                 "ItemCount": len(carton["placements"]),
                 "ContentsWeightKg": round(carton["contents_mass"] / 1000, 3),
+                "PackedWeightKg": round((carton["contents_mass"] + carton.get("tare_mass", 0)) / 1000, 3),
                 "FillRate": carton["fill_rate"],
             }
             for carton in document["cartons"]

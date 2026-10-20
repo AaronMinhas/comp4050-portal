@@ -90,6 +90,14 @@ export function getItemWeightLimit() {
   return request('/orders/item-weight-limit');
 }
 
+export function getManualHandlingSettings() {
+  return request('/settings/manual-handling');
+}
+
+export function updateManualHandlingSettings(WarningThresholdKg) {
+  return request('/settings/manual-handling', asJson({ WarningThresholdKg }, 'PUT'));
+}
+
 export function archiveOrder(orderId) {
   return request(`/orders/${encodeURIComponent(orderId)}/archive`, { method: 'POST' });
 }

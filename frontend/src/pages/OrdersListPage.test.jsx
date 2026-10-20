@@ -51,6 +51,35 @@ describe('order list rejection badges', () => {
   });
 });
 
+describe('heavy order indicators in every list', () => {
+  it.each(['active', 'backlog', 'archived'])('flags heavy items and packed boxes in the %s view', async (view) => {
+    const item = { ItemCode: 'DEMO', ItemReference: 'Demo', Weight: 1, Quantity: 100 };
+    const base = { Status: 'FINAL', CreatedAt: '2026-10-20T00:00:00Z' };
+    const orders = [
+      { ...base, OrderId: 'ORD-HEAVY', Reference: 'Heavy unit', Items: [{ ...item, Weight: 22, Quantity: 1 }] },
+      { ...base, OrderId: 'ORD-BOX', Reference: 'Heavy packed box', Items: [{ ...item, Weight: 10, Quantity: 2 }], MaxPackedWeightKg: 20.2 },
+      { ...base, OrderId: 'ORD-LIGHT', Reference: 'Many light units', Items: [item], MaxPackedWeightKg: 10 },
+    ];
+    const context = { identity: { role: 'USER' }, orders, refreshOrders: vi.fn(), handlingSettings: { WarningThresholdKg: 20 } };
+    useApp.mockImplementation(() => context);
+    listOrders.mockResolvedValue(orders);
+    await act(async () => { archivePage = create(<OrdersListPage view={view} />); });
+    const indicators = archivePage.root.findAllByProps({ 'aria-label': 'Heavy order' });
+    expect(indicators).toHaveLength(2);
+    const text = (node) => node.children.map((child) => typeof child === 'string' ? child : text(child)).join('');
+    expect(text(indicators[0])).toBe('Heavy order');
+    expect(text(indicators[1])).toBe('Heavy order');
+    expect(indicators[0].findByType('button').props['aria-label']).toBe('Heavy order: open handling settings');
+    // The setting updates existing rows without refetching packing documents.
+    context.handlingSettings = { WarningThresholdKg: 25 };
+    act(() => archivePage.update(<OrdersListPage view={view} />));
+    expect(archivePage.root.findAllByProps({ 'aria-label': 'Heavy order' })).toHaveLength(0);
+    context.handlingSettings = { WarningThresholdKg: null };
+    act(() => archivePage.update(<OrdersListPage view={view} />));
+    expect(archivePage.root.findAllByProps({ 'aria-label': 'Heavy order' })).toHaveLength(0);
+  });
+});
+
 describe('backlog and archive views', () => {
   const active = { OrderId: 'ORD-ACTIVE', Reference: 'Active test', Status: 'DRAFT', Items: [] };
   const held = { OrderId: 'ORD-HELD', Reference: 'Paused test', Status: 'OPTIMISED', RejectedCount: 2, Items: [], HeldAt: '2026-10-20T00:00:00Z' };
@@ -76,6 +105,21 @@ describe('backlog and archive views', () => {
     expect(text(archivePage.root)).not.toContain('Active test');
     const badge = archivePage.root.findAllByType('span').find((node) => text(node) === 'Rejected');
     expect(badge.props.className).toContain('text-red-700');
+  });
+
+  it('opens handling settings from the Heavy icon without opening its order', async () => {
+    useApp.mockReturnValue({
+      identity: { role: 'ADMINISTRATOR' },
+      orders: [{ ...active, Items: [{ Weight: 22, Quantity: 1 }] }],
+      handlingSettings: { WarningThresholdKg: 20 }, refreshOrders,
+    });
+    await act(async () => { archivePage = create(<OrdersListPage />); });
+    const stopPropagation = vi.fn();
+    const icon = archivePage.root.findByProps({ 'aria-label': 'Heavy order: open handling settings' });
+    act(() => icon.props.onClick({ stopPropagation }));
+    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith('/boxes#handling-warnings');
   });
 
   it('resumes directly from the list and opens the order to continue working', async () => {
@@ -163,7 +207,17 @@ describe('backlog and archive views', () => {
     expect(navigate).toHaveBeenCalledWith(`/orders/${order.OrderId}`);
   });
 
-  it.each(['a', 'button', '[data-order-actions]', '[role="dialog"]', '[role="tooltip"]'])(
+  it('opens the order from empty space around the actions and Heavy badge', async () => {
+    await act(async () => { archivePage = create(<OrdersListPage />); });
+    const row = archivePage.root.findByType('tbody').findByType('tr');
+    const lastCell = row.findAllByType('td').at(-1);
+    expect(lastCell.props['data-order-actions']).toBeUndefined();
+    expect(lastCell.props.className).not.toContain('cursor-default');
+    act(() => row.props.onClick({ button: 0, target: { closest: () => null } }));
+    expect(navigate).toHaveBeenCalledWith('/orders/ORD-ACTIVE');
+  });
+
+  it.each(['a', 'button', '[role="dialog"]', '[role="tooltip"]'])(
     'keeps clicks on %s independent from opening the row', async (element) => {
       await act(async () => { archivePage = create(<OrdersListPage />); });
       const row = archivePage.root.findByType('tbody').findByType('tr');

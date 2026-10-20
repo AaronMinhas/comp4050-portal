@@ -2,6 +2,7 @@ import React, { useId, useState } from 'react';
 import Field, { inputClass } from '../common/Field.jsx';
 import Button from '../common/Button.jsx';
 import InfoTooltip from '../common/InfoTooltip.jsx';
+import HandlingWarning from './HandlingWarning.jsx';
 import { emptyItemDraft } from '../../data/mockData.js';
 import {
   itemWeightError,
@@ -19,6 +20,7 @@ export default function ItemEntryForm({
   onCancel,
   maxItemWeightKg = null,
   checkingWeightLimit = false,
+  warningThresholdKg = null,
 }) {
   const formId = useId();
   const [draft, setDraft] = useState(() => ({
@@ -145,6 +147,8 @@ export default function ItemEntryForm({
           </div>
         </div>
       </div>
+
+      <HandlingWarning weightKg={Number(draft.Weight)} thresholdKg={warningThresholdKg} />
 
       {weightTooHigh && (
         <p id={`${formId}-weight-error`} className="text-sm text-red-600">

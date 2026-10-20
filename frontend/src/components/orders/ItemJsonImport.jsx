@@ -16,7 +16,7 @@ const PLACEHOLDER = `[
   }
 ]`;
 
-export default function ItemJsonImport({ onImport, maxItemWeightKg = null, checkingWeightLimit = false }) {
+export default function ItemJsonImport({ onImport, maxItemWeightKg = null, checkingWeightLimit = false, warningThresholdKg = null }) {
   const [text, setText] = useState('');
   const [errors, setErrors] = useState([]);
   const [success, setSuccess] = useState('');
@@ -139,6 +139,7 @@ export default function ItemJsonImport({ onImport, maxItemWeightKg = null, check
 
       {previewItems && (
         <ImportedItemsReviewModal
+          warningThresholdKg={warningThresholdKg}
           maxItemWeightKg={maxItemWeightKg}
           checkingWeightLimit={checkingWeightLimit}
           items={previewItems}

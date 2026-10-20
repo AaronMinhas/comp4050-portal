@@ -6,6 +6,9 @@ import PackingDetails, { UnpackedItems } from '../components/orders/PackingDetai
 import InventoryFeasibilityWarning from '../components/orders/InventoryFeasibilityWarning.jsx';
 import OrderManagementActions from '../components/orders/OrderManagementActions.jsx';
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx';
+import HandlingWarningsStatus from '../components/orders/HandlingWarningsStatus.jsx';
+import PackedHandlingWarnings from '../components/orders/PackedHandlingWarnings.jsx';
+import OrderHandlingBadge from '../components/orders/OrderHandlingBadge.jsx';
 import Button from '../components/common/Button.jsx';
 import {
   getOrder as fetchOrder,
@@ -25,7 +28,8 @@ import { formatSolveTime } from '../lib/solveTime.js';
 export default function OrderSummaryPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { identity, refreshOrders } = useApp();
+  const { identity, refreshOrders, handlingSettings, handlingSettingsError, loadingHandlingSettings, refreshHandlingSettings } = useApp();
+  const warningThresholdKg = handlingSettings?.WarningThresholdKg ?? null;
 
   const [order, setOrder] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -201,6 +205,10 @@ export default function OrderSummaryPage() {
         </Link>
       </div>
 
+      {(handlingSettings || handlingSettingsError || loadingHandlingSettings) && (
+        <div className="mb-4"><HandlingWarningsStatus settings={handlingSettings} error={handlingSettingsError} loading={loadingHandlingSettings} onRetry={refreshHandlingSettings} /></div>
+      )}
+
       <div className="relative overflow-hidden rounded-sm border border-ink-100 bg-white p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -215,10 +223,14 @@ export default function OrderSummaryPage() {
             </p>
             {order.FinalisedAt && <p className="mt-1 text-sm text-ink-400">Finalised {formatCreated(order.FinalisedAt)}</p>}
           </div>
-          <OrderStatusBadge
-            orderId={order.OrderId} status={order.Status} rejectedCount={rejectedCount}
-            rejections={solution?.rejects ?? summary?.Rejected}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <OrderHandlingBadge items={order.Items} solution={solution} summary={summary} maxPackedWeightKg={order.MaxPackedWeightKg} thresholdKg={warningThresholdKg}
+              onSettingsClick={() => navigate('/boxes#handling-warnings')} />
+            <OrderStatusBadge
+              orderId={order.OrderId} status={order.Status} rejectedCount={rejectedCount}
+              rejections={solution?.rejects ?? summary?.Rejected}
+            />
+          </div>
         </div>
 
         <div className="cut-line my-5" />
@@ -261,10 +273,11 @@ export default function OrderSummaryPage() {
 
       <div className="mt-6">
         <h3 className="mb-3 font-display text-lg font-semibold text-ink-700">Items</h3>
-        <ItemsTable items={order.Items} />
+        <ItemsTable items={order.Items} warningThresholdKg={warningThresholdKg} />
       </div>
 
       <OptimisationPanel
+        warningThresholdKg={warningThresholdKg}
         orderId={order.OrderId}
         summary={summary}
         solution={solution}
@@ -447,7 +460,7 @@ function LifecycleActions({
   );
 }
 
-function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
+function OptimisationPanel({ orderId, summary, solution, solveCount, items, warningThresholdKg }) {
   const [handoff, setHandoff] = useState(null);
   const [handoffLoading, setHandoffLoading] = useState(false);
   const [handoffError, setHandoffError] = useState(null);
@@ -495,8 +508,9 @@ function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
         <Stat label="Execution time" value={formatSolveTime(solveTime)} />
       </div>
 
+      <PackedHandlingWarnings solution={solution} summary={summary} thresholdKg={warningThresholdKg} />
       {solution && <UnpackedItems rejects={solution.rejects} />}
-      {solution && <PackingDetails key={solution.solution_id} solution={solution} items={items} />}
+      {solution && <PackingDetails key={solution.solution_id} solution={solution} items={items} warningThresholdKg={warningThresholdKg} />}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="font-mono text-xs uppercase tracking-wide text-ink-300">

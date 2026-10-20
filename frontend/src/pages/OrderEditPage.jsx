@@ -9,7 +9,7 @@ import { canRunSolver } from '../lib/roles.js';
 export default function OrderEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { identity, refreshOrders } = useApp();
+  const { identity, refreshOrders, handlingSettings, handlingSettingsError, loadingHandlingSettings, refreshHandlingSettings } = useApp();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +71,8 @@ export default function OrderEditPage() {
 
   return (
     <OrderItemsEditor
+      handlingSettings={handlingSettings} handlingSettingsError={handlingSettingsError}
+      loadingHandlingSettings={loadingHandlingSettings} refreshHandlingSettings={refreshHandlingSettings}
       initialItems={order.Items}
       onSave={save}
       onCancel={() => navigate(`/orders/${id}`)}

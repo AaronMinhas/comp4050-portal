@@ -6,6 +6,7 @@ import ItemsTable from './ItemsTable.jsx';
 import { orderTotals } from '../../lib/orders.js';
 import { getItemWeightLimit } from '../../api/client.js';
 import { validateItemFields } from '../../lib/itemValidation.js';
+import HandlingWarningsStatus from './HandlingWarningsStatus.jsx';
 
 const ENTRY_TABS = [
   { id: 'manual', label: 'Manual entry' },
@@ -19,6 +20,10 @@ export default function OrderItemsEditor({
   saveLabel,
   savingLabel,
   notice,
+  handlingSettings,
+  handlingSettingsError,
+  loadingHandlingSettings,
+  refreshHandlingSettings,
 }) {
   const [items, setItems] = useState(() => initialItems.map((item) => ({ ...item })));
   const [error, setError] = useState('');
@@ -54,6 +59,7 @@ export default function OrderItemsEditor({
   }, [refreshCapacity]);
 
   const maxItemWeightKg = capacity?.MaxItemWeightKg ?? null;
+  const warningThresholdKg = handlingSettings?.WarningThresholdKg ?? null;
   const checkingWeightLimit = loadingCapacity || Boolean(capacityError);
   const itemErrors = items.flatMap((item, index) => validateItemFields(item, { label: `Item ${index + 1} (${item.ItemCode})`, maxItemWeightKg }));
 
@@ -107,6 +113,9 @@ export default function OrderItemsEditor({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {(handlingSettings || handlingSettingsError || loadingHandlingSettings) && (
+        <div className="lg:col-span-3"><HandlingWarningsStatus settings={handlingSettings} error={handlingSettingsError} loading={loadingHandlingSettings} onRetry={refreshHandlingSettings} /></div>
+      )}
       {notice && (
         <p className="rounded-sm border border-ink-100 bg-white p-3 text-sm text-ink-600 lg:col-span-3">
           {notice}
@@ -148,9 +157,9 @@ export default function OrderItemsEditor({
           </div>
           <div className="cut-line my-4" />
           {entryTab === 'manual' ? (
-            <ItemEntryForm onAdd={handleAddItem} maxItemWeightKg={maxItemWeightKg} checkingWeightLimit={checkingWeightLimit} />
+            <ItemEntryForm onAdd={handleAddItem} maxItemWeightKg={maxItemWeightKg} checkingWeightLimit={checkingWeightLimit} warningThresholdKg={warningThresholdKg} />
           ) : (
-            <ItemJsonImport onImport={handleImportItems} maxItemWeightKg={maxItemWeightKg} checkingWeightLimit={checkingWeightLimit} />
+            <ItemJsonImport onImport={handleImportItems} maxItemWeightKg={maxItemWeightKg} checkingWeightLimit={checkingWeightLimit} warningThresholdKg={warningThresholdKg} />
           )}
         </section>
       </div>
@@ -183,6 +192,7 @@ export default function OrderItemsEditor({
           Items on this order
         </h2>
         <ItemsTable
+          warningThresholdKg={warningThresholdKg}
           items={items}
           onRemove={handleRemoveItem}
           onEdit={setEditingIndex}
@@ -192,6 +202,7 @@ export default function OrderItemsEditor({
           <section className="mt-4 rounded-sm border border-brand-200 bg-brand-50/40 p-4">
             <h3 className="mb-3 font-display font-semibold text-ink-700">Edit item</h3>
             <ItemEntryForm
+              warningThresholdKg={warningThresholdKg}
               maxItemWeightKg={maxItemWeightKg}
               checkingWeightLimit={checkingWeightLimit}
               key={`edit-${editingIndex}`}

@@ -404,7 +404,9 @@ def test_manager_can_optimise_a_draft_directly_without_consuming_inventory(heade
     assert response.status_code == 200, response.text
     assert response.json()["rejects"] == []
     updated = client.get(f"/orders/{order_id}").json()
-    assert updated == {**original, "Status": "OPTIMISED"}
+    packed = response.json()['cartons']
+    max_weight = max((carton['contents_mass'] + carton.get('tare_mass', 0)) / 1000 for carton in packed)
+    assert updated == {**original, "Status": "OPTIMISED", "MaxPackedWeightKg": max_weight}
     assert client.get(f"/orders/{order_id}/solution").json() == response.json()
     assert client.get("/orders").json()[0] == updated
     assert client.get("/boxes").json() == inventory_before

@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import Numeric, column, func, select, text, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -39,12 +40,15 @@ def _to_item(record: OrderItemRecord) -> Item:
     )
 
 
-def _to_stored_order(record: OrderRecord, rejected_count: int = 0) -> StoredOrder:
+def _to_stored_order(
+    record: OrderRecord, rejected_count: int = 0, max_packed_weight_kg: float | None = None
+) -> StoredOrder:
     return StoredOrder(
         OrderId=record.order_id,
         Reference=record.reference,
         Status=record.status,
         RejectedCount=rejected_count,
+        MaxPackedWeightKg=max_packed_weight_kg,
         ArchivedAt=record.archived_at,
         HeldAt=record.held_at,
         FinalisedAt=record.finalised_at,
@@ -109,17 +113,28 @@ def lock_record(session: Session, order_id: str) -> OrderRecord:
 
 def find_order(session: Session, order_id: str) -> StoredOrder | None:
     row = session.execute(
-        _orders_with_rejected_count().where(OrderRecord.order_id == order_id)
+        _orders_with_solution_summary().where(OrderRecord.order_id == order_id)
     ).first()
     return _to_stored_order(*row) if row else None
 
 
-def _orders_with_rejected_count():
-    """Project rejection counts without loading full solution documents."""
+def _orders_with_solution_summary():
+    """Project list indicators without loading full solution documents."""
     rejected_count = func.coalesce(
         func.jsonb_array_length(SolutionRecord.solution_json["rejects"]), 0
     )
-    return select(OrderRecord, rejected_count).outerjoin(
+    cartons = func.jsonb_array_elements(
+        SolutionRecord.solution_json["cartons"]
+    ).table_valued(column("value", JSONB)).alias("carton")
+    contents_mass = cartons.c.value["contents_mass"].astext.cast(Numeric)
+    tare_mass = cartons.c.value["tare_mass"].astext.cast(Numeric)
+    max_packed_weight_kg = (
+        select(func.max((contents_mass + func.coalesce(tare_mass, 0)) / 1000))
+        .select_from(cartons)
+        .correlate(SolutionRecord)
+        .scalar_subquery()
+    )
+    return select(OrderRecord, rejected_count, max_packed_weight_kg).outerjoin(
         SolutionRecord, SolutionRecord.order_id == OrderRecord.order_id
     )
 
@@ -131,13 +146,13 @@ def list_orders(session: Session, *, view: OrderView = "active") -> list[StoredO
         "archived": OrderRecord.archived_at.is_not(None),
     }
     rows = session.execute(
-        _orders_with_rejected_count().where(
+        _orders_with_solution_summary().where(
             filters[view]
         ).order_by(
             OrderRecord.created_at.desc(), OrderRecord.order_number.desc()
         )
     ).all()
-    return [_to_stored_order(record, rejected_count) for record, rejected_count in rows]
+    return [_to_stored_order(*row) for row in rows]
 
 
 def set_archived(session: Session, record: OrderRecord) -> None:

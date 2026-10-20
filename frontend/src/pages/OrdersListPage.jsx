@@ -4,12 +4,13 @@ import { useApp } from '../context/AppContext.jsx';
 import Button from '../components/common/Button.jsx';
 import { formatCreated, orderTotals } from '../lib/orders.js';
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx';
+import OrderHandlingBadge from '../components/orders/OrderHandlingBadge.jsx';
 import { listOrders } from '../api/client.js';
 import { canManageOrders } from '../lib/roles.js';
 import OrderManagementActions from '../components/orders/OrderManagementActions.jsx';
 
 export default function OrdersListPage({ view = 'active' }) {
-  const { identity, orders, ordersError, loadingOrders, refreshOrders } = useApp();
+  const { identity, orders, ordersError, loadingOrders, refreshOrders, handlingSettings } = useApp();
   const navigate = useNavigate();
   const [viewOrders, setViewOrders] = useState([]);
   const [viewError, setViewError] = useState(null);
@@ -104,7 +105,12 @@ export default function OrdersListPage({ view = 'active' }) {
             <table className="w-full text-center text-sm">
               <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-400">
                 <tr>
-                  <th className="px-4 py-3 font-mono">Order</th>
+                  <th className="w-px whitespace-nowrap px-[2ch] py-3 font-mono text-sm">
+                    <span className="grid grid-cols-[1.25rem_1fr] items-center gap-x-[2ch]">
+                      <span aria-hidden="true" />
+                      <span className="text-xs">Order</span>
+                    </span>
+                  </th>
                   <th className="px-4 py-3">Reference</th>
                   <th className="px-4 py-3">Items</th>
                   <th className="px-4 py-3">{view === 'backlog' ? 'On hold since' : view === 'archived' ? 'Archived' : 'Created'}</th>
@@ -125,18 +131,25 @@ export default function OrdersListPage({ view = 'active' }) {
                       className="order-row cursor-pointer"
                       onClick={(event) => {
                         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                        if (event.target.closest('a, button, input, select, textarea, [data-order-actions], [role="dialog"], [role="tooltip"]')) return;
+                        if (event.target.closest('a, button, input, select, textarea, [role="dialog"], [role="tooltip"]')) return;
                         if (globalThis.getSelection?.()?.toString()) return;
                         navigate(`/orders/${order.OrderId}`);
                       }}
                     >
-                      <td className="px-4 py-3">
-                        <Link
-                          to={`/orders/${order.OrderId}`}
-                          className="inline-flex min-h-8 items-center rounded-sm px-2 font-mono font-medium text-brand-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                        >
-                          {order.OrderId}
-                        </Link>
+                      <td className="w-px whitespace-nowrap px-[2ch] py-3 font-mono">
+                        <span className="grid grid-cols-[1.25rem_1fr] items-center gap-x-[2ch]">
+                          <span className="flex w-5 items-center justify-center">
+                            <OrderHandlingBadge compact items={order.Items} maxPackedWeightKg={order.MaxPackedWeightKg}
+                              thresholdKg={handlingSettings?.WarningThresholdKg}
+                              onSettingsClick={() => navigate('/boxes#handling-warnings')} />
+                          </span>
+                          <Link
+                            to={`/orders/${order.OrderId}`}
+                            className="inline-flex min-h-8 items-center justify-center rounded-sm font-medium text-brand-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                          >
+                            {order.OrderId}
+                          </Link>
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-ink-700">
                         <Link
@@ -155,7 +168,7 @@ export default function OrdersListPage({ view = 'active' }) {
                         <OrderStatusBadge orderId={order.OrderId} status={order.Status} rejectedCount={order.RejectedCount} />
                       </td>
                       {managers && (
-                        <td data-order-actions className="min-w-[13rem] cursor-default px-4 py-3 text-left">
+                        <td className="min-w-[13rem] px-4 py-3 text-left">
                           <OrderManagementActions
                             order={order}
                             onChanged={async (action) => {

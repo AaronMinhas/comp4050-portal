@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-export default function InfoTooltip({ description, label, className = '', iconSize = 10, descriptionId: providedId, closeSignal, onOpen }) {
+export default function InfoTooltip({ description, label, className = '', iconSize = 10, icon, descriptionId: providedId, closeSignal, onOpen, onClick, align = 'start', compact = false }) {
   const generatedId = useId();
   const descriptionId = providedId ?? generatedId;
   const tooltip = useRef(null);
@@ -24,14 +24,16 @@ export default function InfoTooltip({ description, label, className = '', iconSi
 
   useLayoutEffect(() => {
     if (!position || !tooltip.current?.getBoundingClientRect || !window.innerHeight) return;
-    const height = tooltip.current.getBoundingClientRect().height;
+    const { width, height } = tooltip.current.getBoundingClientRect();
     const bounds = anchor.current.getBoundingClientRect();
+    const desiredLeft = align === 'center' ? bounds.left + bounds.width / 2 - width / 2 : bounds.left;
+    const left = Math.max(8, Math.min(desiredLeft, window.innerWidth - width - 8));
     const above = bounds.top >= height + 8 || bounds.top > window.innerHeight - bounds.bottom;
     const top = above
       ? Math.max(height + 8, bounds.top)
       : Math.min(bounds.bottom, window.innerHeight - height - 8);
-    if (position.top !== top || position.above !== above) setPosition({ ...position, top, above });
-  }, [position, description]);
+    if (position.left !== left || position.top !== top || position.above !== above) setPosition({ left, top, above });
+  }, [position, description, align]);
 
   useEffect(() => {
     if (!position) return undefined;
@@ -64,22 +66,26 @@ export default function InfoTooltip({ description, label, className = '', iconSi
         }}
         onFocus={(event) => { focused.current = true; show(event.currentTarget); }}
         onBlur={() => { focused.current = false; if (!hovered.current) setPosition(null); }}
-        onClick={(event) => { event.stopPropagation(); show(event.currentTarget); }}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (onClick) onClick(event);
+          else show(event.currentTarget);
+        }}
       >
-        <svg aria-hidden="true" width={iconSize} height={iconSize} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        {icon ?? <svg aria-hidden="true" width={iconSize} height={iconSize} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
           <circle cx="10" cy="10" r="8" />
           <path d="M10 9v5m0-8v.5" strokeLinecap="round" />
-        </svg>
+        </svg>}
       </button>
       {position ? createPortal(
         <div
           ref={tooltip}
-          className={`fixed z-[100] w-64 ${position.above ? '-translate-y-full pb-2' : 'pt-2'}`}
+          className={`fixed z-[100] ${compact ? 'w-max' : 'w-64'} ${position.above ? '-translate-y-full pb-2' : 'pt-2'}`}
           style={{ left: position.left, top: position.top, maxWidth: 'calc(100vw - 16px)' }}
           onClick={(event) => event.stopPropagation()}
           onMouseLeave={() => { if (!focused.current) setPosition(null); }}
         >
-          <div id={descriptionId} role="tooltip" className="max-h-[calc(100vh-2rem)] overflow-y-auto rounded-sm bg-ink-700 px-3 py-2 text-left text-xs font-normal leading-relaxed text-white shadow-lg">
+          <div id={descriptionId} role="tooltip" className={`max-h-[calc(100vh-2rem)] overflow-y-auto rounded-sm bg-ink-700 px-3 py-2 ${align === 'center' ? 'text-center' : 'text-left'} text-xs font-normal leading-relaxed text-white shadow-lg`}>
             {description}
           </div>
         </div>, document.body

@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { createBox, deleteBox, importBoxes, listBoxes, updateBox } from '../api/client.js';
 import Button from '../components/common/Button.jsx';
 import Field, { inputClass } from '../components/common/Field.jsx';
 import BoxJsonImport from '../components/boxes/BoxJsonImport.jsx';
+import ManualHandlingSettings from '../components/boxes/ManualHandlingSettings.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { formatMaximumBoxes, normaliseMaximumBoxes } from '../lib/boxValidation.js';
 import { canManageBoxInventory } from '../lib/roles.js';
@@ -20,6 +22,8 @@ const EMPTY_BOX = {
 
 export default function BoxInventoryPage() {
   const { identity } = useApp();
+  const { hash } = useLocation();
+  const handlingSettingsRef = useRef(null);
   const canManage = canManageBoxInventory(identity.role);
   const [boxes, setBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +48,12 @@ export default function BoxInventoryPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!loading && hash === '#handling-warnings') {
+      handlingSettingsRef.current?.scrollIntoView({ block: 'start' });
+    }
+  }, [hash, loading]);
 
   const save = async (payload) => {
     setSuccess('');
@@ -110,6 +120,10 @@ export default function BoxInventoryPage() {
             <Button onClick={() => setEditing(EMPTY_BOX)}>+ Add Box Type</Button>
           </div>
         )}
+      </div>
+
+      <div ref={handlingSettingsRef} className="mb-4">
+        <ManualHandlingSettings />
       </div>
 
       {success && (

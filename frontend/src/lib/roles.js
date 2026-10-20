@@ -30,3 +30,7 @@ export function canManageUsers(role) {
 export function canManageOrders(role) {
   return OPERATIONAL_MANAGER_ROLES.has(role);
 }
+
+export function canConfigureHandlingWarnings(role) {
+  return OPERATIONAL_MANAGER_ROLES.has(role);
+}

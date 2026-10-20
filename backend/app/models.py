@@ -156,6 +156,14 @@ class BoxImportResponse(PortalModel):
     boxes: list[BoxType] = Field(alias="Boxes")
 
 
+class ManualHandlingSettings(PortalModel):
+    """Site-selected advisory trigger; null leaves warnings unconfigured."""
+
+    warning_threshold_kg: float | None = Field(
+        alias="WarningThresholdKg", gt=0, allow_inf_nan=False
+    )
+
+
 class Order(PortalModel):
     """Create-order request. Portal assigns identity after validation."""
 
@@ -169,6 +177,9 @@ class StoredOrder(Order):
     reference: str = Field(alias="Reference", min_length=1)
     status: OrderStatus = Field(default="DRAFT", alias="Status")
     rejected_count: int = Field(default=0, alias="RejectedCount", ge=0)
+    max_packed_weight_kg: float | None = Field(
+        default=None, alias="MaxPackedWeightKg", ge=0, allow_inf_nan=False
+    )
     archived_at: datetime | None = Field(default=None, alias="ArchivedAt")
     held_at: datetime | None = Field(default=None, alias="HeldAt")
     finalised_at: datetime | None = Field(default=None, alias="FinalisedAt")

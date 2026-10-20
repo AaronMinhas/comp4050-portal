@@ -4,7 +4,7 @@ import ItemEntryForm from './ItemEntryForm.jsx';
 import ItemsTable from './ItemsTable.jsx';
 import { validateItemFields } from '../../lib/itemValidation.js';
 
-export default function ImportedItemsReviewModal({ items: initialItems, onCancel, onConfirm, maxItemWeightKg = null, checkingWeightLimit = false }) {
+export default function ImportedItemsReviewModal({ items: initialItems, onCancel, onConfirm, maxItemWeightKg = null, checkingWeightLimit = false, warningThresholdKg = null }) {
   const [items, setItems] = useState(initialItems);
   const [editingIndex, setEditingIndex] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -97,6 +97,7 @@ export default function ImportedItemsReviewModal({ items: initialItems, onCancel
         <div className="cut-line my-4" />
 
         <ItemsTable
+          warningThresholdKg={warningThresholdKg}
           items={items}
           onRemove={removeItem}
           onEdit={(index) => {
@@ -111,6 +112,7 @@ export default function ImportedItemsReviewModal({ items: initialItems, onCancel
           <div className="mt-4 rounded-sm border border-brand-200 bg-brand-50/40 p-4">
             <h3 className="mb-3 font-display font-semibold text-ink-700">Edit imported item</h3>
             <ItemEntryForm
+              warningThresholdKg={warningThresholdKg}
               maxItemWeightKg={maxItemWeightKg}
               checkingWeightLimit={checkingWeightLimit}
               key={`edit-${editingIndex}`}
@@ -126,6 +128,7 @@ export default function ImportedItemsReviewModal({ items: initialItems, onCancel
           <div className="mt-4 rounded-sm border border-brand-200 bg-brand-50/40 p-4">
             <h3 className="mb-3 font-display font-semibold text-ink-700">Add imported item</h3>
             <ItemEntryForm
+              warningThresholdKg={warningThresholdKg}
               maxItemWeightKg={maxItemWeightKg}
               checkingWeightLimit={checkingWeightLimit}
               onAdd={addItem}
