@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import Field, { inputClass } from '../common/Field.jsx';
 import Button from '../common/Button.jsx';
 import { emptyItemDraft } from '../../data/mockData.js';
 import {
   MAX_ITEM_WEIGHT_KG,
+  ITEM_TEXT_LIMITS,
+  itemTextLimitError,
   normaliseItem,
   validateItemFields,
   weightExceedsLimit,
@@ -15,6 +17,7 @@ export default function ItemEntryForm({
   submitLabel = 'Add item to order',
   onCancel,
 }) {
+  const formId = useId();
   const [draft, setDraft] = useState(() => ({
     ...emptyItemDraft(),
     ...initialItem,
@@ -27,6 +30,8 @@ export default function ItemEntryForm({
   };
 
   const weightTooHigh = weightExceedsLimit(draft.Weight);
+  const codeError = itemTextLimitError('ItemCode', draft.ItemCode);
+  const referenceError = itemTextLimitError('ItemReference', draft.ItemReference);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -55,21 +60,27 @@ export default function ItemEntryForm({
     <form onSubmit={handleAdd} className="space-y-4">
       <p className="text-xs text-ink-300">* Required</p>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Item code *">
+        <Field label="Item code *" hint={`Max ${ITEM_TEXT_LIMITS.ItemCode} characters`}>
           <input
-            className={inputClass('font-mono')}
+            className={inputClass(`font-mono ${codeError ? 'border-red-400 text-red-600' : ''}`)}
             placeholder="ITM-001"
             value={draft.ItemCode}
             onChange={update('ItemCode')}
+            aria-invalid={Boolean(codeError)}
+            aria-describedby={codeError ? `${formId}-code-error` : undefined}
           />
+          {codeError && <p id={`${formId}-code-error`} className="mt-1 text-sm text-red-600">{codeError}</p>}
         </Field>
-        <Field label="Item reference *">
+        <Field label="Item reference *" hint={`Max ${ITEM_TEXT_LIMITS.ItemReference} characters`}>
           <input
-            className={inputClass()}
+            className={inputClass(referenceError ? 'border-red-400 text-red-600' : '')}
             placeholder="Widget C"
             value={draft.ItemReference}
             onChange={update('ItemReference')}
+            aria-invalid={Boolean(referenceError)}
+            aria-describedby={referenceError ? `${formId}-reference-error` : undefined}
           />
+          {referenceError && <p id={`${formId}-reference-error`} className="mt-1 text-sm text-red-600">{referenceError}</p>}
         </Field>
       </div>
 
@@ -155,7 +166,7 @@ export default function ItemEntryForm({
             Cancel
           </Button>
         )}
-        <Button type="submit" className={onCancel ? '' : 'w-full'} disabled={weightTooHigh}>
+        <Button type="submit" className={onCancel ? '' : 'w-full'} disabled={weightTooHigh || Boolean(codeError) || Boolean(referenceError)}>
           {submitLabel}
         </Button>
       </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normaliseItem, parseItemsJson, validateItemFields } from './itemValidation.js';
+import { ITEM_TEXT_LIMITS, normaliseItem, parseItemsJson, validateItemFields } from './itemValidation.js';
 
 const ITEM = {
   ItemCode: 'ITM-001',
@@ -43,6 +43,30 @@ describe('item weight limit', () => {
   it('keeps the 32 kg limit', () => {
     expect(validateItemFields({ ...ITEM, Weight: 32 })).toEqual([]);
     expect(validateItemFields({ ...ITEM, Weight: 32.01 })[0]).toMatch('exceeds the maximum');
+  });
+});
+
+describe.each(Object.entries(ITEM_TEXT_LIMITS))('%s character limit', (field, limit) => {
+  it.each(['A', '😀'])('accepts exactly the limit after trimming, including %s characters', (character) => {
+    const value = character.repeat(limit);
+    const item = { ...ITEM, [field]: `  ${value}  ` };
+
+    expect(validateItemFields(item)).toEqual([]);
+    expect(normaliseItem(item)[field]).toBe(value);
+    const imported = parseItemsJson(JSON.stringify({ Items: [item] }));
+    expect(imported.errors).toEqual([]);
+    expect(imported.items[0][field]).toBe(value);
+  });
+
+  it.each(['A', '😀'])('rejects overlong %s text for both manual entry and JSON import', (character) => {
+    const item = { ...ITEM, [field]: character.repeat(limit + 1) };
+
+    expect(validateItemFields(item)).toEqual([`"${field}" must be ${limit} characters or fewer.`]);
+    const imported = parseItemsJson(JSON.stringify([ITEM, item]));
+    expect(imported.items).toBeNull();
+    expect(imported.errors).toHaveLength(1);
+    expect(imported.errors[0]).toContain('Item 2');
+    expect(imported.errors[0]).toContain(`"${field}" must be ${limit} characters or fewer.`);
   });
 });
 

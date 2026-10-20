@@ -321,8 +321,12 @@ the order list and detail page. It can be edited or re-optimised, and cannot be
 finalised until all items are packed. The persisted lifecycle status remains
 `OPTIMISED`; a later successful re-optimisation clears the rejection indicator.
 
-`ItemCode` is the client's own identifier. Any non-blank text is accepted and
-stored as given, apart from trimming surrounding whitespace.
+`ItemCode` is the client's own identifier, limited to 32 characters.
+`ItemReference` is limited to 100 characters. Both fields require non-blank text;
+surrounding whitespace is trimmed before checking lengths and saving. Manual
+entry, editing, JSON import and the API enforce these limits without truncating
+values. Unicode code points count as characters, consistently in the frontend
+and backend.
 
 ## Testing
 

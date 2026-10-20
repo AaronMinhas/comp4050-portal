@@ -21,6 +21,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 OrderStatus = Literal["DRAFT", "AWAITING_OPTIMISATION", "OPTIMISED", "FINAL"]
 
+# Keep aligned with ITEM_TEXT_LIMITS in frontend/src/lib/itemValidation.js.
+MAX_ITEM_CODE_LENGTH = 32
+MAX_ITEM_REFERENCE_LENGTH = 100
+
 
 class Role(StrEnum):
     """Stable role values shared by the Portal API contract."""
@@ -55,9 +59,11 @@ class PortalModel(BaseModel):
 class Item(PortalModel):
     """An item to pack, following the client's item schema. Quantity defaults to 1."""
 
-    # The client's own identifier: any non-blank text, stored as given.
-    item_code: str = Field(alias="ItemCode", min_length=1)
-    item_reference: str = Field(alias="ItemReference", min_length=1)
+    # The client's own identifier: non-blank text within the character limit.
+    item_code: str = Field(alias="ItemCode", min_length=1, max_length=MAX_ITEM_CODE_LENGTH)
+    item_reference: str = Field(
+        alias="ItemReference", min_length=1, max_length=MAX_ITEM_REFERENCE_LENGTH
+    )
     width: int = Field(alias="Width", gt=0)
     length: int = Field(alias="Length", gt=0)
     depth: int = Field(alias="Depth", gt=0)

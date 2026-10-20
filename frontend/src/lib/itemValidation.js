@@ -3,6 +3,17 @@
 // backend/app/models.py).
 
 export const MAX_ITEM_WEIGHT_KG = 32;
+// Keep aligned with MAX_ITEM_*_LENGTH in backend/app/models.py.
+export const ITEM_TEXT_LIMITS = Object.freeze({ ItemCode: 32, ItemReference: 100 });
+
+export function itemTextLimitError(field, value) {
+  const limit = ITEM_TEXT_LIMITS[field];
+  // Count Unicode code points, matching Pydantic, after whitespace trimming.
+  if (typeof value === 'string' && Array.from(value.trim()).length > limit) {
+    return `"${field}" must be ${limit} characters or fewer.`;
+  }
+  return '';
+}
 
 const REQUIRED_STRING_FIELDS = ['ItemCode', 'ItemReference'];
 const REQUIRED_POSITIVE_NUMBER_FIELDS = ['Width', 'Length', 'Depth', 'Weight'];
@@ -35,11 +46,14 @@ export function validateItemFields(raw, { label } = {}) {
     errors.push(`${prefix}Unrecognised field(s): ${unknownFields.join(', ')}.`);
   }
 
-  // ItemCode is the client's own identifier: any non-blank text.
+  // ItemCode is the client's own identifier: non-blank text within the limit.
   for (const field of REQUIRED_STRING_FIELDS) {
     const value = raw[field];
     if (typeof value !== 'string' || !value.trim()) {
       errors.push(`${prefix}"${field}" is required and must be a non-empty string.`);
+    } else {
+      const lengthError = itemTextLimitError(field, value);
+      if (lengthError) errors.push(`${prefix}${lengthError}`);
     }
   }
 
@@ -129,7 +143,8 @@ export function parseItemsJson(jsonText) {
 
   const errors = [];
   candidateItems.forEach((raw, idx) => {
-    const label = `Item ${idx + 1}${raw && raw.ItemCode ? ` (${raw.ItemCode})` : ''}`;
+    const code = typeof raw?.ItemCode === 'string' ? raw.ItemCode.trim() : '';
+    const label = `Item ${idx + 1}${code && !itemTextLimitError('ItemCode', code) ? ` (${code})` : ''}`;
     errors.push(...validateItemFields(raw, { label }));
   });
 
