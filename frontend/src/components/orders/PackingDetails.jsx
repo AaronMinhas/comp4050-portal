@@ -37,16 +37,16 @@ export function UnpackedItems({ rejects }) {
 
   return (
     <section
-      className="mt-5 rounded-sm border border-ink-100 bg-white p-4"
+      className="mt-5 rounded-sm border border-red-200 bg-red-50 p-4"
       aria-labelledby="unpacked-items-title"
     >
-      <h4 id="unpacked-items-title" className="font-display font-semibold text-ink-700">
+      <h4 id="unpacked-items-title" className="font-display font-semibold text-red-700">
         Items not packed
       </h4>
-      <p className="mt-1 text-sm text-ink-500">
+      <p className="mt-1 text-sm text-red-700">
         FitSolver could not place the following items:
       </p>
-      <ul className="mt-3 space-y-2 text-sm text-ink-600">
+      <ul className="mt-3 space-y-2 text-sm text-red-700">
         {groupedRejects.map((reject) => (
           <li key={`${reject.itemRef}-${reject.reason}`}>
             <span className="font-mono font-semibold">{reject.itemRef}</span>

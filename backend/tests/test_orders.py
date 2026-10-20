@@ -88,10 +88,14 @@ class TestCreateOrder:
     def test_response_uses_pascal_case_field_names(self):
         body = client.post("/orders", json=VALID_ORDER).json()
 
-        assert set(body) == {"OrderId", "Reference", "Items", "Status", "CreatedAt"}
+        assert set(body) == {
+            "OrderId", "Reference", "Items", "Status", "CreatedAt", "RejectedCount"
+        }
 
     def test_new_orders_start_as_drafts(self):
-        assert client.post("/orders", json=VALID_ORDER).json()["Status"] == "DRAFT"
+        body = client.post("/orders", json=VALID_ORDER).json()
+        assert body["Status"] == "DRAFT"
+        assert body["RejectedCount"] == 0
 
     def test_created_at_is_assigned_by_the_backend(self):
         assert client.post("/orders", json=VALID_ORDER).json()["CreatedAt"]
@@ -240,7 +244,8 @@ class TestCreateOrder:
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
-        "field, value", [("Status", "OPTIMISED"), ("CreatedAt", "2020-01-01")]
+        "field, value",
+        [("Status", "OPTIMISED"), ("CreatedAt", "2020-01-01"), ("RejectedCount", 0)],
     )
     def test_caller_supplied_server_fields_are_rejected(self, field, value):
         response = client.post("/orders", json={**VALID_ORDER, field: value})
@@ -368,6 +373,7 @@ class TestUpdateOrder:
             ("Reference", "MQ-999"),
             ("CreatedAt", "2020-01-01"),
             ("Status", "OPTIMISED"),
+            ("RejectedCount", 0),
         ],
     )
     def test_update_cannot_override_server_owned_fields(self, field, value):

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import Button from '../components/common/Button.jsx';
 import { formatCreated, orderTotals } from '../lib/orders.js';
-import { ORDER_STATUS_STYLES, orderStatusLabel } from '../lib/orderStatus.js';
+import { orderStatusLabel, orderStatusStyle } from '../lib/orderStatus.js';
 
 export default function OrdersListPage() {
   const { orders, ordersError, loadingOrders, refreshOrders } = useApp();
@@ -76,9 +76,9 @@ export default function OrdersListPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`rounded-sm px-2 py-1 text-xs font-medium ${ORDER_STATUS_STYLES[order.Status] || 'bg-ink-50 text-ink-500'}`}
+                        className={`rounded-sm px-2 py-1 text-xs font-medium ${orderStatusStyle(order.Status, order.RejectedCount)}`}
                       >
-                        {orderStatusLabel(order.Status)}
+                        {orderStatusLabel(order.Status, order.RejectedCount)}
                       </span>
                     </td>
                   </tr>

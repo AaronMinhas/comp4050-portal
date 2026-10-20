@@ -160,6 +160,7 @@ class StoredOrder(Order):
     order_id: str = Field(alias="OrderId")
     reference: str = Field(alias="Reference", min_length=1)
     status: OrderStatus = Field(default="DRAFT", alias="Status")
+    rejected_count: int = Field(default=0, alias="RejectedCount", ge=0)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), alias="CreatedAt"
     )

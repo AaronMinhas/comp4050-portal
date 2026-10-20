@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import ItemsTable from '../components/orders/ItemsTable.jsx';
@@ -16,7 +16,7 @@ import {
   visualiserUrl,
 } from '../api/client.js';
 import { formatCreated, orderTotals } from '../lib/orders.js';
-import { ORDER_STATUS_STYLES, orderStatusLabel } from '../lib/orderStatus.js';
+import { orderStatusLabel, orderStatusStyle } from '../lib/orderStatus.js';
 import { canRunSolver } from '../lib/roles.js';
 
 export default function OrderSummaryPage() {
@@ -38,49 +38,55 @@ export default function OrderSummaryPage() {
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [showReoptimiseConfirm, setShowReoptimiseConfirm] = useState(false);
   const [showFinaliseConfirm, setShowFinaliseConfirm] = useState(false);
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
     setLoading(true);
+    setSummary(null);
+    setSolution(null);
+    setOptimising(false);
+    setPackError(null);
+    setSuccessMessage('');
     try {
       const loaded = await fetchOrder(id);
+      if (generation !== loadGeneration.current) return;
       setOrder(loaded);
       setLoadError(null);
 
       if (['OPTIMISED', 'FINAL'].includes(loaded.Status)) {
-        try {
-          const [loadedSummary, loadedSolution] = await Promise.all([
-            fetchSolutionSummary(id),
-            fetchSolution(id),
-          ]);
-          setSummary(loadedSummary);
-          setSolution(loadedSolution);
-        } catch {
-          setSummary(null);
-          setSolution(null);
+        const [loadedSummary, loadedSolution] = await Promise.allSettled([
+          fetchSolutionSummary(id),
+          fetchSolution(id),
+        ]);
+        if (generation !== loadGeneration.current) return;
+        if (loadedSummary.status === 'fulfilled') setSummary(loadedSummary.value);
+        if (loadedSolution.status === 'fulfilled') setSolution(loadedSolution.value);
+        if (loadedSummary.status === 'rejected' || loadedSolution.status === 'rejected') {
+          setPackError(new Error('Some optimisation details could not be loaded. Refresh the page to try again.'));
         }
       }
     } catch (error) {
-      setLoadError(error);
+      if (generation === loadGeneration.current) setLoadError(error);
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
     load();
+    return () => { loadGeneration.current += 1; };
   }, [load]);
 
   useEffect(() => {
-    if (order?.Status !== 'OPTIMISED') return undefined;
+    if (!order || optimising || actionPending) return undefined;
     const refresh = async () => {
-      try {
-        setSummary(await fetchSolutionSummary(id));
-      } catch {
-      }
+      await load();
+      await refreshOrders();
     };
     window.addEventListener('focus', refresh);
     return () => window.removeEventListener('focus', refresh);
-  }, [id, order?.Status]);
+  }, [load, Boolean(order), optimising, actionPending, refreshOrders]);
 
   const submit = async () => {
     setActionPending(true);
@@ -97,29 +103,35 @@ export default function OrderSummaryPage() {
   };
 
   const optimise = async ({ reoptimising = false } = {}) => {
+    const generation = loadGeneration.current;
     setOptimising(true);
     setPackError(null);
     setSuccessMessage('');
     try {
-      await solveOrder(id);
-      const [updatedSummary, updatedSolution] = await Promise.all([
-        fetchSolutionSummary(id),
-        fetchSolution(id),
-      ]);
-      setSummary(updatedSummary);
+      const updatedSolution = await solveOrder(id);
+      if (generation !== loadGeneration.current) return;
+      setSummary(null);
       setSolution(updatedSolution);
       setSolveCount((count) => count + 1);
-      setOrder((current) => (current ? { ...current, Status: 'OPTIMISED' } : current));
+      setOrder((current) => (current ? {
+        ...current,
+        Status: 'OPTIMISED',
+        RejectedCount: updatedSolution.rejects.length,
+      } : current));
+      await refreshOrders();
+      if (generation !== loadGeneration.current) return;
+      const updatedSummary = await fetchSolutionSummary(id);
+      if (generation !== loadGeneration.current) return;
+      setSummary(updatedSummary);
       setSuccessMessage(
         reoptimising
           ? 'Re-optimisation completed using the current Box Inventory.'
           : 'Optimisation completed.'
       );
-      await refreshOrders();
     } catch (error) {
-      setPackError(error);
+      if (generation === loadGeneration.current) setPackError(error);
     } finally {
-      setOptimising(false);
+      if (generation === loadGeneration.current) setOptimising(false);
     }
   };
 
@@ -162,6 +174,7 @@ export default function OrderSummaryPage() {
   }
 
   const totals = orderTotals(order.Items);
+  const rejectedCount = solution?.rejects?.length ?? order.RejectedCount ?? 0;
   const feasibility =
     order.Status === 'OPTIMISED' ? summary?.InventoryFeasibility ?? null : null;
   const editOrder = () => {
@@ -194,9 +207,9 @@ export default function OrderSummaryPage() {
             </p>
           </div>
           <span
-            className={`rounded-sm px-3 py-1 text-sm font-medium ${ORDER_STATUS_STYLES[order.Status] || 'bg-ink-50 text-ink-500'}`}
+            className={`rounded-sm px-3 py-1 text-sm font-medium ${orderStatusStyle(order.Status, rejectedCount)}`}
           >
-            {orderStatusLabel(order.Status)}
+            {orderStatusLabel(order.Status, rejectedCount)}
           </span>
         </div>
 
@@ -211,6 +224,7 @@ export default function OrderSummaryPage() {
 
       <LifecycleActions
         status={order.Status}
+        rejectedCount={rejectedCount}
         pending={actionPending || optimising}
         optimising={optimising}
         finalising={actionPending && order.Status === 'OPTIMISED'}
@@ -272,17 +286,18 @@ export default function OrderSummaryPage() {
   );
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, warning = false }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-ink-400">{label}</p>
-      <p className="font-mono text-xl font-semibold text-ink-700">{value}</p>
+      <p className={`text-xs uppercase tracking-wide ${warning ? 'text-red-700' : 'text-ink-400'}`}>{label}</p>
+      <p className={`font-mono text-xl font-semibold ${warning ? 'text-red-700' : 'text-ink-700'}`}>{value}</p>
     </div>
   );
 }
 
 function LifecycleActions({
   status,
+  rejectedCount,
   pending,
   optimising,
   finalising,
@@ -297,6 +312,7 @@ function LifecycleActions({
   feasibility,
 }) {
   const inventoryIsShort = Boolean(feasibility) && !feasibility.Sufficient;
+  const hasRejects = status === 'OPTIMISED' && rejectedCount > 0;
   let message;
   let primaryAction;
 
@@ -319,7 +335,9 @@ function LifecycleActions({
       );
     }
   } else if (status === 'OPTIMISED') {
-    message = 'This order has a current optimisation result.';
+    message = hasRejects
+      ? `${rejectedCount} ${rejectedCount === 1 ? 'item was' : 'items were'} not packed. Review the rejected items below, then edit the order or re-optimise before finalising.`
+      : 'This order has a current optimisation result.';
     if (canOptimise) {
       primaryAction = (
         <>
@@ -329,11 +347,13 @@ function LifecycleActions({
           <Button
             variant="danger"
             onClick={onFinalise}
-            disabled={pending || inventoryIsShort}
+            disabled={pending || inventoryIsShort || hasRejects}
             title={
-              inventoryIsShort
-                ? 'Box Inventory cannot currently fulfil this optimisation'
-                : undefined
+              hasRejects
+                ? 'Resolve the rejected items and re-optimise before finalising'
+                : inventoryIsShort
+                  ? 'Box Inventory cannot currently fulfil this optimisation'
+                  : undefined
             }
           >
             {finalising ? 'Finalising...' : 'Finalise Order'}
@@ -349,10 +369,10 @@ function LifecycleActions({
     <section className="mt-6 rounded-sm border border-ink-100 bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="font-display text-lg font-semibold text-ink-700">
-            {orderStatusLabel(status)}
+          <h3 className={`font-display text-lg font-semibold ${hasRejects ? 'text-red-700' : 'text-ink-700'}`}>
+            {orderStatusLabel(status, rejectedCount)}
           </h3>
-          <p className="mt-1 text-sm text-ink-400">{message}</p>
+          <p className={`mt-1 text-sm ${hasRejects ? 'text-red-700' : 'text-ink-400'}`}>{message}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {status !== 'FINAL' && (
@@ -368,7 +388,7 @@ function LifecycleActions({
           {error.message}
         </p>
       )}
-      {successMessage && !error && (
+      {successMessage && !error && !hasRejects && (
         <p className="mt-4 rounded-sm border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700">
           {successMessage}
         </p>
@@ -406,9 +426,14 @@ function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
     }
   };
 
-  if (!summary) return null;
+  if (!summary && !solution) return null;
 
-  const rejected = summary?.Rejected ?? [];
+  const rejectedCount = solution?.rejects?.length ?? summary?.Rejected?.length ?? 0;
+  const boxCount = summary?.BoxCount ?? solution.cartons.length;
+  const itemsPacked = summary?.ItemsPacked ?? solution.cartons.reduce(
+    (total, carton) => total + carton.placements.length, 0
+  );
+  const fillRate = summary?.FillRate ?? solution.metrics.fill_rate;
   const visualiser = handoff ? visualiserUrl(handoff.SolutionUrl) : null;
 
   return (
@@ -419,10 +444,10 @@ function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
       </p>
       <div className="cut-line my-5" />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Boxes" value={summary.BoxCount} />
-        <Stat label="Items packed" value={summary.ItemsPacked} />
-        <Stat label="Rejected" value={rejected.length} />
-        <Stat label="Fill rate" value={`${Math.round(summary.FillRate * 1000) / 10}%`} />
+        <Stat label="Boxes" value={boxCount} />
+        <Stat label="Items packed" value={itemsPacked} />
+        <Stat label="Rejected" value={rejectedCount} warning={rejectedCount > 0} />
+        <Stat label="Fill rate" value={`${Math.round(fillRate * 1000) / 10}%`} />
       </div>
 
       {solution && <UnpackedItems rejects={solution.rejects} />}
@@ -430,7 +455,7 @@ function OptimisationPanel({ orderId, summary, solution, solveCount, items }) {
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="font-mono text-xs uppercase tracking-wide text-ink-300">
-          Optimised order {orderId}
+          Result for order {orderId}
         </p>
         <div className="flex items-center gap-3">
           <Button onClick={openVisualizer} disabled={handoffLoading || !solution}>
@@ -536,7 +561,7 @@ function EditWarningModal({ onCancel, onContinue }) {
     >
       <div className="w-full max-w-lg rounded-sm bg-white p-5 shadow-xl">
         <h2 id="edit-warning-title" className="font-display text-xl font-semibold text-ink-700">
-          Edit optimised order?
+          Edit order and discard its optimisation result?
         </h2>
         <p className="mt-3 text-sm text-ink-500">
           Editing this order will invalidate the current optimisation. You will need to

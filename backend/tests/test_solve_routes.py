@@ -8,10 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 from fitsolver import portal
 
-from app import boxes, store
+from app import boxes, database, store
 from app.boxes import active_box_types
 from app.main import app
-from app.models import BoxTypeUpdate, Role
+from app.models import BoxType, BoxTypeUpdate, Role
 from tests.auth_helpers import auth_headers
 from tests.box_fixtures import DEFAULT_BOX_TYPES
 
@@ -160,6 +160,104 @@ def test_summary_lists_rejected_items_for_the_packer():
     assert summary["Rejected"][0]["ItemCode"] == "ITM-999"
     assert summary["Rejected"][0]["Reason"] == "NO_FITTING_CARTON"
     assert summary["Rejected"][0]["Detail"]
+
+
+@pytest.mark.parametrize("include_packed_item", [False, True])
+def test_order_list_and_detail_report_rejected_units(include_packed_item):
+    items = [an_item("OVERSIZED", Width=1200, Length=800, Depth=1000, Quantity=3)]
+    if include_packed_item:
+        items.append(an_item())
+    order_id = create_order(items)
+    submit_order(order_id)
+    other_id = create_order([an_item("OTHER")])
+
+    response = solve(order_id)
+
+    assert response.status_code == 200, response.text
+    assert len(response.json()["rejects"]) == 3
+    assert bool(response.json()["cartons"]) == include_packed_item
+    database.dispose_engine()
+    detail = client.get(f"/orders/{order_id}").json()
+    assert detail["Status"] == "OPTIMISED"
+    assert detail["RejectedCount"] == 3
+    listed = {order["OrderId"]: order for order in client.get("/orders").json()}
+    assert listed[order_id] == detail
+    assert listed[other_id]["Status"] == "DRAFT"
+    assert listed[other_id]["RejectedCount"] == 0
+
+
+def test_reoptimising_can_add_rejections_to_a_previously_successful_order():
+    order_id = create_order([an_item()])
+    submit_order(order_id)
+    assert solve(order_id).status_code == 200
+    assert client.get(f"/orders/{order_id}").json()["RejectedCount"] == 0
+    for box in boxes.list_box_types():
+        update_inventory(box.reference, Active=False)
+    boxes.add_box_type(BoxType(
+        Reference="TINY", Width=10, Length=10, Depth=10, MaxWeight=5, BoxWeight=0.1,
+    ))
+
+    response = solve(order_id)
+
+    assert response.status_code == 200, response.text
+    assert len(response.json()["rejects"]) == 1
+    for order in [client.get(f"/orders/{order_id}").json(), *client.get("/orders").json()]:
+        assert order["Status"] == "OPTIMISED"
+        assert order["RejectedCount"] == 1
+
+
+def test_reoptimising_clears_rejection_count_when_all_items_fit():
+    order_id = create_order([an_item(Width=1200, Length=800, Depth=1000)])
+    submit_order(order_id)
+    assert solve(order_id).status_code == 200
+    assert client.get(f"/orders/{order_id}").json()["RejectedCount"] == 1
+    boxes.add_box_type(BoxType(
+        Reference="XL", Width=1600, Length=1600, Depth=1600, MaxWeight=100, BoxWeight=1,
+    ))
+
+    response = solve(order_id)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["rejects"] == []
+    for order in [client.get(f"/orders/{order_id}").json(), *client.get("/orders").json()]:
+        assert order["Status"] == "OPTIMISED"
+        assert order["RejectedCount"] == 0
+    finalised = client.post(f"/orders/{order_id}/finalise", headers=SUPERVISOR_HEADERS)
+    assert finalised.status_code == 200, finalised.text
+    assert finalised.json()["Status"] == "FINAL"
+    assert finalised.json()["RejectedCount"] == 0
+
+
+def test_editing_a_rejected_order_clears_the_rejection_count():
+    order_id = create_order([an_item(Width=1200, Length=800, Depth=1000)])
+    submit_order(order_id)
+    assert solve(order_id).status_code == 200
+    assert client.get(f"/orders/{order_id}").json()["RejectedCount"] == 1
+
+    response = client.put(f"/orders/{order_id}", json={"Items": [an_item()]})
+
+    assert response.status_code == 200
+    assert response.json()["Status"] == "DRAFT"
+    assert response.json()["RejectedCount"] == 0
+    assert client.get(f"/orders/{order_id}").json() == response.json()
+    assert client.get("/orders").json()[0] == response.json()
+    assert client.get(f"/orders/{order_id}/solution").status_code == 404
+
+
+def test_failed_reoptimisation_preserves_saved_rejection_count(monkeypatch):
+    order_id = create_order([an_item(Width=1200, Length=800, Depth=1000, Quantity=2)])
+    submit_order(order_id)
+    assert solve(order_id).status_code == 200
+
+    def fail(_request):
+        raise RuntimeError("Solver unavailable")
+
+    monkeypatch.setattr("app.routes.solve.solve_request", fail)
+
+    assert solve(order_id).status_code == 500
+    for order in [client.get(f"/orders/{order_id}").json(), *client.get("/orders").json()]:
+        assert order["Status"] == "OPTIMISED"
+        assert order["RejectedCount"] == 2
 
 
 def test_summary_for_an_unsolved_order_is_a_404():

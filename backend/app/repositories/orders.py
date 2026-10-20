@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -13,6 +13,7 @@ from app.db.models import (
     ORDER_REFERENCE_SEQUENCE,
     OrderItemRecord,
     OrderRecord,
+    SolutionRecord,
 )
 from app.errors import OrderNotFoundError
 from app.models import Item, Order, OrderStatus, StoredOrder
@@ -38,11 +39,12 @@ def _to_item(record: OrderItemRecord) -> Item:
     )
 
 
-def _to_stored_order(record: OrderRecord) -> StoredOrder:
+def _to_stored_order(record: OrderRecord, rejected_count: int = 0) -> StoredOrder:
     return StoredOrder(
         OrderId=record.order_id,
         Reference=record.reference,
         Status=record.status,
+        RejectedCount=rejected_count,
         CreatedAt=record.created_at.astimezone(timezone.utc),
         Items=[_to_item(item) for item in record.items],
     )
@@ -103,17 +105,29 @@ def lock_record(session: Session, order_id: str) -> OrderRecord:
 
 
 def find_order(session: Session, order_id: str) -> StoredOrder | None:
-    record = find_record(session, order_id)
-    return _to_stored_order(record) if record else None
+    row = session.execute(
+        _orders_with_rejected_count().where(OrderRecord.order_id == order_id)
+    ).first()
+    return _to_stored_order(*row) if row else None
+
+
+def _orders_with_rejected_count():
+    """Project rejection counts without loading full solution documents."""
+    rejected_count = func.coalesce(
+        func.jsonb_array_length(SolutionRecord.solution_json["rejects"]), 0
+    )
+    return select(OrderRecord, rejected_count).outerjoin(
+        SolutionRecord, SolutionRecord.order_id == OrderRecord.order_id
+    )
 
 
 def list_orders(session: Session) -> list[StoredOrder]:
-    records = session.scalars(
-        select(OrderRecord).order_by(
+    rows = session.execute(
+        _orders_with_rejected_count().order_by(
             OrderRecord.created_at.desc(), OrderRecord.order_number.desc()
         )
     ).all()
-    return [_to_stored_order(record) for record in records]
+    return [_to_stored_order(record, rejected_count) for record, rejected_count in rows]
 
 
 def replace_items(session: Session, record: OrderRecord, items: Iterable[Item]) -> None:
