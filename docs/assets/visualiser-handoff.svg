@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 920 812" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="visualiser-handoff-title visualiser-handoff-desc" id="visualiser-handoff-root">
+      <title id="visualiser-handoff-title">FitVisualiser handoff</title>
+      <desc id="visualiser-handoff-desc">The frontend requests a short-lived scoped link, opens FitVisualiser with it, and FitVisualiser fetches the saved solution from the Portal API, which returns it only if the token and solution digest are valid.</desc>
+      <defs>
+      <style>#visualiser-handoff-root { --color-paper: #0d1117; --color-ink: #e6edf3; --color-muted: #9da7b3; --color-accent: #58a6ff;
+      --font-sans: 'Geist', system-ui, sans-serif;
+      --font-serif: 'Instrument Serif', 'Noto Serif', serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace; }
+      #visualiser-handoff-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #visualiser-handoff-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#visualiser-handoff-root .diagram-container { overflow-x: visible; }
+}</style>
+        <marker id="visualiser-handoff-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#9da7b3"/></marker>
+        <marker id="visualiser-handoff-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#79c0ff"/></marker>
+        <marker id="visualiser-handoff-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#58a6ff"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#0d1117"/>
+<line x1="112" y1="104" x2="112" y2="720" stroke="#e6edf3" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.20"/>
+      <line x1="344" y1="104" x2="344" y2="720" stroke="#e6edf3" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.20"/>
+      <line x1="584" y1="104" x2="584" y2="720" stroke="#e6edf3" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.20"/>
+      <line x1="808" y1="104" x2="808" y2="720" stroke="#e6edf3" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.20"/>
+      <rect x="316" y="556" width="308" height="156" rx="4" fill="#e6edf3" stroke="#e6edf3" stroke-width="1" fill-opacity="0.04" stroke-opacity="0.22"/>
+      <rect x="316" y="556" width="40" height="16" rx="2" fill="#0d1117" stroke="#e6edf3" stroke-width="1" stroke-opacity="0.22"/>
+      <text x="336" y="568" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.12em">ALT</text>
+      <text x="328" y="592" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start" letter-spacing="0.04em">[token and digest valid]</text>
+      <line x1="324" y1="644" x2="616" y2="644" stroke="#e6edf3" stroke-width="1" stroke-dasharray="4,3" stroke-opacity="0.20"/>
+      <text x="328" y="664" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start" letter-spacing="0.04em">[else]</text>
+      <rect x="580" y="140" width="8" height="172" fill="#e6edf3" stroke="#9da7b3" stroke-width="0.8" fill-opacity="0.06"/>
+      <rect x="580" y="376" width="8" height="324" fill="#e6edf3" stroke="#9da7b3" stroke-width="0.8" fill-opacity="0.06"/>
+      <rect x="804" y="176" width="8" height="52" fill="#e6edf3" stroke="#9da7b3" stroke-width="0.8" fill-opacity="0.06"/>
+      <rect x="804" y="460" width="8" height="52" fill="#e6edf3" stroke="#9da7b3" stroke-width="0.8" fill-opacity="0.06"/>
+      <path d="M 116,148 H 580" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="426.4" y="128" width="75.2" height="12" rx="2" fill="#0d1117"/>
+      <text x="464" y="137" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">POST HANDOFF</text>
+      <path d="M 588,184 H 804" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="655.6" y="164" width="80.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="696" y="173" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">READ SOLUTION</text>
+      <path d="M 804,220 H 588" fill="none" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="669.6" y="200" width="52.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="696" y="209" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SOLUTION</text>
+      <path d="M 588,256 H 616 V 272 H 592" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <text x="624" y="267" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start" letter-spacing="0.06em">SIGN TOKEN</text>
+      <path d="M 580,304 H 116" fill="none" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="426.4" y="284" width="75.2" height="12" rx="2" fill="#0d1117"/>
+      <text x="464" y="293" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SOLUTION URL</text>
+      <path d="M 116,348 H 340" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="201.6" y="328" width="52.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="228" y="337" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">OPEN URL</text>
+      <path d="M 348,384 H 580" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="426.4" y="364" width="75.2" height="12" rx="2" fill="#0d1117"/>
+      <text x="464" y="373" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET SOLUTION</text>
+      <path d="M 588,420 H 616 V 436 H 592" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <text x="624" y="431" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start" letter-spacing="0.06em">VERIFY TOKEN</text>
+      <path d="M 588,468 H 804" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="655.6" y="448" width="80.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="696" y="457" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">READ SOLUTION</text>
+      <path d="M 804,504 H 588" fill="none" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="669.6" y="484" width="52.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="696" y="493" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SOLUTION</text>
+      <path d="M 580,620 H 348" fill="none" stroke="#58a6ff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#visualiser-handoff-arrow-accent)"/>
+      <rect x="437.6" y="600" width="52.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="464" y="609" fill="#58a6ff" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SOLUTION</text>
+      <path d="M 580,692 H 348" fill="none" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#visualiser-handoff-arrow)"/>
+      <rect x="451.6" y="672" width="24.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="464" y="681" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">401</text>
+      <rect x="40" y="40" width="144" height="64" rx="6" fill="#0d1117"/>
+      <rect x="40" y="40" width="144" height="64" rx="6" fill="#58a6ff" stroke="#58a6ff" stroke-width="1" fill-opacity="0.10"/>
+      <rect x="48" y="48" width="22" height="12" rx="2" fill="none" stroke="#58a6ff" stroke-width="0.8" stroke-opacity="0.50"/>
+      <text x="59" y="57" fill="#58a6ff" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">UI</text>
+      <text x="112" y="80" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">React frontend</text>
+      <text x="112" y="96" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Browser</text>
+      <rect x="272" y="40" width="144" height="64" rx="6" fill="#0d1117"/>
+      <rect x="272" y="40" width="144" height="64" rx="6" fill="#e6edf3" stroke="#e6edf3" stroke-width="1" fill-opacity="0.03" stroke-opacity="0.30"/>
+      <rect x="280" y="48" width="27" height="12" rx="2" fill="none" stroke="#e6edf3" stroke-width="0.8" stroke-opacity="0.22"/>
+      <text x="293.5" y="57" fill="#8b949e" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+      <text x="344" y="80" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">FitVisualiser</text>
+      <text x="344" y="96" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Separate app</text>
+      <rect x="512" y="40" width="144" height="64" rx="6" fill="#0d1117"/>
+      <rect x="512" y="40" width="144" height="64" rx="6" fill="#58a6ff" stroke="#58a6ff" stroke-width="1" fill-opacity="0.10"/>
+      <rect x="520" y="48" width="27" height="12" rx="2" fill="none" stroke="#58a6ff" stroke-width="0.8" stroke-opacity="0.50"/>
+      <text x="533.5" y="57" fill="#58a6ff" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+      <text x="584" y="80" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">FastAPI backend</text>
+      <text x="584" y="96" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Portal API</text>
+      <rect x="736" y="40" width="144" height="64" rx="6" fill="#0d1117"/>
+      <rect x="736" y="40" width="144" height="64" rx="6" fill="#e6edf3" stroke="#9da7b3" stroke-width="1" fill-opacity="0.05"/>
+      <rect x="744" y="48" width="22" height="12" rx="2" fill="none" stroke="#9da7b3" stroke-width="0.8" stroke-opacity="0.50"/>
+      <text x="755" y="57" fill="#9da7b3" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DB</text>
+      <text x="808" y="80" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">PostgreSQL</text>
+      <text x="808" y="96" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Saved solutions</text>
+      <line x1="40" y1="756" x2="880" y2="756" stroke="#e6edf3" stroke-width="0.8" stroke-opacity="0.10"/>
+      <text x="40" y="772" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start" letter-spacing="0.18em">LEGEND</text>
+      <line x1="40" y1="789" x2="68" y2="789" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#visualiser-handoff-arrow)"/>
+      <text x="76" y="792" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif" text-anchor="start">Request</text>
+      <line x1="160" y1="789" x2="188" y2="789" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#visualiser-handoff-arrow)"/>
+      <text x="196" y="792" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif" text-anchor="start">Return</text>
+      <line x1="280" y1="789" x2="308" y2="789" stroke="#58a6ff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#visualiser-handoff-arrow-accent)"/>
+      <text x="316" y="792" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif" text-anchor="start">Solution returned</text>
+    </svg>

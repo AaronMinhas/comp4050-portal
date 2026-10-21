@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 896 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="order-lifecycle-title order-lifecycle-desc" id="order-lifecycle-root">
+      <title id="order-lifecycle-title">Order lifecycle</title>
+      <desc id="order-lifecycle-desc">Order statuses Draft, Awaiting optimisation, Optimised and Finalised with the actions that move an order between them, plus the separate on-hold and archived conditions.</desc>
+      <defs>
+      <style>#order-lifecycle-root { --color-paper: #0d1117; --color-ink: #e6edf3; --color-muted: #9da7b3; --color-accent: #58a6ff;
+      --font-sans: 'Geist', system-ui, sans-serif;
+      --font-serif: 'Instrument Serif', 'Noto Serif', serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace; }
+      #order-lifecycle-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #order-lifecycle-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#order-lifecycle-root .diagram-container { overflow-x: visible; }
+}</style>
+        <marker id="order-lifecycle-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#9da7b3"/></marker>
+        <marker id="order-lifecycle-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#79c0ff"/></marker>
+        <marker id="order-lifecycle-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#58a6ff"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#0d1117"/>
+      <!-- Arrows first -->
+      <circle cx="88" cy="104" r="6" fill="#e6edf3"/>
+      <path d="M 88,110 V 176" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+      <path d="M 196,208 H 260" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+      <path d="M 416,208 H 480" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+      <path d="M 636,208 H 700" fill="none" stroke="#58a6ff" stroke-width="1.4" marker-end="url(#order-lifecycle-arrow-accent)"/>
+      <path d="M 164,176 V 144 Q 164,136 172,136 H 524 Q 532,136 532,144 V 176" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+      <path d="M 588,176 V 152 Q 588,144 596,144 H 612 Q 620,144 620,152 V 176" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+      <path d="M 330,240 V 264 Q 330,272 322,272 H 128 Q 120,272 120,264 V 240" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+      <path d="M 588,240 V 312 Q 588,320 580,320 H 88 Q 80,320 80,312 V 240" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+            <!-- Labels -->
+      <rect x="96" y="126" width="48" height="12" rx="2" fill="#0d1117"/>
+      <text x="120" y="135" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">CREATE</text>
+      <rect x="207.2" y="188" width="41.6" height="12" rx="2" fill="#0d1117"/>
+      <text x="228" y="197" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SUBMIT</text>
+      <rect x="421.6" y="188" width="52.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="448" y="197" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">OPTIMISE</text>
+      <rect x="641.6" y="188" width="52.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="668" y="197" fill="#58a6ff" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">FINALISE</text>
+      <rect x="321.6" y="114" width="52.8" height="12" rx="2" fill="#0d1117"/>
+      <text x="348" y="123" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">OPTIMISE</text>
+      <rect x="569.2" y="118" width="69.6" height="12" rx="2" fill="#0d1117"/>
+      <text x="604" y="127" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RE-OPTIMISE</text>
+      <rect x="193" y="282" width="64" height="12" rx="2" fill="#0d1117"/>
+      <text x="225" y="291" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">EDIT ITEMS</text>
+      <rect x="302" y="330" width="64" height="12" rx="2" fill="#0d1117"/>
+      <text x="334" y="339" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">EDIT ITEMS</text>
+            <!-- States -->
+      <rect x="40" y="176" width="156" height="64" rx="8" fill="#0d1117"/>
+      <rect x="40" y="176" width="156" height="64" rx="8" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+      <text x="118" y="206" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Draft</text>
+      <text x="118" y="222" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">DRAFT</text>
+      <rect x="260" y="176" width="156" height="64" rx="8" fill="#0d1117"/>
+      <rect x="260" y="176" width="156" height="64" rx="8" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+      <text x="338" y="206" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Awaiting optimisation</text>
+      <text x="338" y="222" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">AWAITING_OPTIMISATION</text>
+      <rect x="480" y="176" width="156" height="64" rx="8" fill="#0d1117"/>
+      <rect x="480" y="176" width="156" height="64" rx="8" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+      <text x="558" y="206" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Optimised</text>
+      <text x="558" y="222" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">OPTIMISED</text>
+      <rect x="700" y="176" width="156" height="64" rx="8" fill="#0d1117"/>
+      <rect x="700" y="176" width="156" height="64" rx="8" fill="#58a6ff" stroke="#58a6ff" stroke-width="1" fill-opacity="0.10"/>
+      <text x="778" y="206" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Finalised</text>
+      <text x="778" y="222" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">FINAL · read-only</text>
+      <rect x="40" y="376" width="396" height="92" rx="6" fill="#0d1117"/>
+      <rect x="40" y="376" width="396" height="92" rx="6" fill="#e6edf3" stroke="#e6edf3" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.03" stroke-opacity="0.30"/>
+      <text x="52" y="398" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="start">On hold (unfinished orders)</text>
+      <text x="52" y="420" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start">Hold and Resume keep the stage, items and result.</text>
+      <text x="52" y="436" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start">While held: no edit, submit, optimise or finalise.</text>
+      <text x="52" y="452" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start">Unfinished orders can also be deleted.</text>
+      <rect x="460" y="376" width="396" height="92" rx="6" fill="#0d1117"/>
+      <rect x="460" y="376" width="396" height="92" rx="6" fill="#e6edf3" stroke="#e6edf3" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.03" stroke-opacity="0.30"/>
+      <text x="472" y="398" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="start">Archived (finalised orders)</text>
+      <text x="472" y="420" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start">Archive manually, or automatically after one month.</text>
+      <text x="472" y="436" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start">Archived orders are read-only: no resume or delete.</text>
+      <line x1="40" y1="500" x2="856" y2="500" stroke="#e6edf3" stroke-width="0.8" stroke-opacity="0.10"/>
+      <text x="40" y="516" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start" letter-spacing="0.18em">LEGEND</text>
+      <rect x="40" y="520" width="14" height="10" rx="2" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+      <text x="60" y="528" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif" text-anchor="start">Order status</text>
+      <rect x="140" y="520" width="14" height="10" rx="2" fill="#58a6ff" stroke="#58a6ff" stroke-width="1" fill-opacity="0.10"/>
+      <text x="160" y="528" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif" text-anchor="start">End status</text>
+      <rect x="236" y="520" width="14" height="10" rx="2" fill="#e6edf3" stroke="#e6edf3" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.03" stroke-opacity="0.30"/>
+      <text x="256" y="528" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif" text-anchor="start">Applies on top of a status</text>
+      <line x1="430" y1="525" x2="458" y2="525" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#order-lifecycle-arrow)"/>
+      <text x="466" y="528" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif" text-anchor="start">Status change</text>
+    </svg>
