@@ -2,9 +2,9 @@
 
 FitPortal is the customer-facing component of **Dynamic Fit**, a system for creating packing orders, optimising how items are packed into boxes, and visualising the result.
 
-> **Deployed Vesion:** Dynamic Fit website: **https://dynamicfit.aaron-d02.workers.dev/**
+> **Live Application:** [Dynamic Fit](https://dynamicfit.aaron-d02.workers.dev/)
 >
-> **Local Development:** Access docs here -> [Local Development](docs/local-development.md).
+> **Local Development:** [Getting Started](docs/local-development.md)
 
 ## Product Overview
 
@@ -30,11 +30,17 @@ FitPortal lets staff create orders from items, optimise how the items pack into 
 - Item entry by form or JSON import, with character and weight validation.
 - Box Inventory management, including reviewed `boxes.json` import and optional quantity limits.
 - Packing optimisation through FitSolver, including re-optimisation.
-- Packing results with a per-box summary, rejected items and an embedded 3D view in FitVisualiser.
+- Packing results, including box summaries, rejected items and 3D visualisation through FitVisualiser.
 - Supabase Auth sign-in and role-based permissions (User, Supervisor, Administrator).
 - Order finalisation, which deducts the boxes used from Box Inventory.
 - Advisory manual handling warnings for heavy packed boxes.
 - Automatic archiving of finalised orders one month after finalisation.
+
+## Requirements
+
+FitPortal's requirements cover order management, box inventory, packing optimisation, user access and integration with FitSolver and FitVisualiser.
+
+See the [Requirements Specification](docs/requirements.md) for the complete requirements, including MVP and post-MVP functionality.
 
 ## System Architecture
 
