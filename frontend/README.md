@@ -13,7 +13,7 @@ database or FitSolver directly.
 
 ## Getting started
 
-Follow the [repository setup](../README.md) first. Local Supabase and the Portal
+Follow the [local development guide](../docs/local-development.md) first. Local Supabase and the Portal
 API must already be running. FitVisualizer is optional unless you need the 3D
 visualisation.
 
@@ -28,7 +28,7 @@ Set `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env` to the `PUBLISHABLE_KEY` printed b
 `sb_publishable_...` key, never `SUPABASE_SECRET_KEY`.
 
 The app runs at `http://127.0.0.1:5174`. Sign in using an account created by the
-local bootstrap process documented in the repository README. API, visualiser and
+local bootstrap process documented in the local development guide. API, visualiser and
 Supabase URLs are configured through:
 
 - `VITE_PORTAL_API_BASE`

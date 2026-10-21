@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitPortal System Architecture</title>
+  <!-- Font source: system. No network requests. Regenerate docs/assets/fitportal-architecture.svg with export_svg.py --system-fonts. -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d1117;
+      --color-ink:     #e6edf3;
+      --color-muted:   #9da7b3;
+      --color-accent:  #58a6ff;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 896px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Diagram Design</p>
+    <h1>FitPortal system architecture</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 896 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fitportal-architecture-title fitportal-architecture-desc">
+      <title id="fitportal-architecture-title">FitPortal system architecture</title>
+      <desc id="fitportal-architecture-desc">A user works in the React frontend, which signs in with Supabase Auth and calls the FastAPI backend; the backend verifies bearer tokens, applies business rules, saves and loads data through a database access layer to PostgreSQL, runs FitSolver in-process, and serves a scoped solution handoff to the separate FitVisualiser app.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#9da7b3"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#79c0ff"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#0d1117"/>
+
+      <!-- Zone: FastAPI process (contains business logic and the in-process FitSolver) -->
+      <rect x="424" y="120" width="432" height="256" rx="8" fill="rgba(230,237,243,0.03)" stroke="rgba(230,237,243,0.10)" stroke-width="0.8"/>
+      <rect x="728" y="124" width="120" height="12" rx="2" fill="#0d1117"/>
+      <text x="788" y="133" fill="#8b949e" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.14em">FASTAPI PROCESS</text>
+
+      <!-- Arrows first (behind boxes) -->
+      <path d="M 136,176 H 176" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 328,176 H 448" fill="none" stroke="#79c0ff" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+      <path d="M 252,152 V 104" fill="none" stroke="#79c0ff" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+      <path d="M 576,152 V 80 Q 576,72 568,72 H 328" fill="none" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <path d="M 616,176 H 704" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 704,200 H 616" fill="none" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <path d="M 532,224 V 272" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 616,312 H 704" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 768,352 V 440" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 252,224 V 440" fill="none" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 360,476 H 392 Q 400,476 400,468 V 208 Q 400,200 408,200 H 448" fill="none" stroke="#79c0ff" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+
+      <!-- Arrow labels -->
+      <rect x="344" y="162" width="64" height="12" rx="2" fill="#0d1117"/>
+        <text x="376" y="171" fill="#79c0ff" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">REST + JWT</text>
+      <rect x="260" y="122" width="48" height="12" rx="2" fill="#0d1117"/>
+        <text x="284" y="131" fill="#79c0ff" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SIGN IN</text>
+      <rect x="416" y="52" width="64" height="12" rx="2" fill="#0d1117"/>
+        <text x="448" y="61" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">VERIFY JWT</text>
+      <rect x="628" y="156" width="64" height="12" rx="2" fill="#0d1117"/>
+        <text x="660" y="165" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">PACK ORDER</text>
+      <rect x="638" y="208" width="44" height="12" rx="2" fill="#0d1117"/>
+        <text x="660" y="217" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RESULT</text>
+      <rect x="776" y="398" width="76" height="12" rx="2" fill="#0d1117"/>
+        <text x="814" y="407" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">READ / WRITE</text>
+      <rect x="260" y="326" width="72" height="12" rx="2" fill="#0d1117"/>
+        <text x="296" y="335" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">HANDOFF URL</text>
+      <rect x="304" y="388" width="88" height="12" rx="2" fill="#0d1117"/>
+        <text x="348" y="397" fill="#79c0ff" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">FETCH SOLUTION</text>
+
+      <!-- Nodes -->
+      <rect x="40" y="152" width="96" height="72" rx="6" fill="#0d1117"/>
+        <rect x="40" y="152" width="96" height="72" rx="6" fill="rgba(230,237,243,0.03)" stroke="rgba(230,237,243,0.30)" stroke-width="1"/>
+        <rect x="48" y="160" width="27" height="12" rx="2" fill="transparent" stroke="rgba(230,237,243,0.22)" stroke-width="0.8"/>
+        <text x="61.5" y="169" fill="#8b949e" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+        <text x="88" y="192" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">User</text>
+        <text x="88" y="208" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Browser</text>
+      <rect x="176" y="152" width="152" height="72" rx="6" fill="#0d1117"/>
+        <rect x="176" y="152" width="152" height="72" rx="6" fill="rgba(88,166,255,0.10)" stroke="#58a6ff" stroke-width="1"/>
+        <rect x="184" y="160" width="22" height="12" rx="2" fill="transparent" stroke="rgba(88,166,255,0.50)" stroke-width="0.8"/>
+        <text x="195.0" y="169" fill="#58a6ff" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">UI</text>
+        <text x="252" y="192" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">React frontend</text>
+        <text x="252" y="208" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Vite · Tailwind CSS</text>
+      <rect x="176" y="40" width="152" height="64" rx="6" fill="#0d1117"/>
+        <rect x="176" y="40" width="152" height="64" rx="6" fill="rgba(230,237,243,0.03)" stroke="rgba(230,237,243,0.30)" stroke-width="1"/>
+        <rect x="184" y="48" width="27" height="12" rx="2" fill="transparent" stroke="rgba(230,237,243,0.22)" stroke-width="0.8"/>
+        <text x="197.5" y="57" fill="#8b949e" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+        <text x="252" y="80" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Supabase Auth</text>
+        <text x="252" y="96" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">email + password</text>
+      <rect x="448" y="152" width="168" height="72" rx="6" fill="#0d1117"/>
+        <rect x="448" y="152" width="168" height="72" rx="6" fill="rgba(88,166,255,0.10)" stroke="#58a6ff" stroke-width="1"/>
+        <rect x="456" y="160" width="27" height="12" rx="2" fill="transparent" stroke="rgba(88,166,255,0.50)" stroke-width="0.8"/>
+        <text x="469.5" y="169" fill="#58a6ff" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+        <text x="532" y="192" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">FastAPI routes</text>
+        <text x="532" y="208" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Pydantic · role checks</text>
+      <rect x="704" y="152" width="128" height="72" rx="6" fill="#0d1117"/>
+        <rect x="704" y="152" width="128" height="72" rx="6" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+        <rect x="712" y="160" width="27" height="12" rx="2" fill="transparent" stroke="rgba(230,237,243,0.40)" stroke-width="0.8"/>
+        <text x="725.5" y="169" fill="#e6edf3" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">LIB</text>
+        <text x="768" y="192" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">FitSolver</text>
+        <text x="768" y="208" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Python package</text>
+      <rect x="448" y="272" width="168" height="80" rx="6" fill="#0d1117"/>
+        <rect x="448" y="272" width="168" height="80" rx="6" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+        <rect x="456" y="280" width="27" height="12" rx="2" fill="transparent" stroke="rgba(230,237,243,0.40)" stroke-width="0.8"/>
+        <text x="469.5" y="289" fill="#e6edf3" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">APP</text>
+        <text x="532" y="308" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Business rules</text>
+        <text x="532" y="324" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">no edits while on hold</text>
+        <text x="532" y="338" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">finalising deducts stock</text>
+      <rect x="704" y="272" width="128" height="80" rx="6" fill="#0d1117"/>
+        <rect x="704" y="272" width="128" height="80" rx="6" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+        <rect x="712" y="280" width="32" height="12" rx="2" fill="transparent" stroke="rgba(230,237,243,0.40)" stroke-width="0.8"/>
+        <text x="728.0" y="289" fill="#e6edf3" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DATA</text>
+        <text x="768" y="308" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Database access</text>
+        <text x="768" y="324" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">saves and loads data</text>
+        <text x="768" y="338" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">SQLAlchemy · psycopg</text>
+      <rect x="640" y="440" width="192" height="80" rx="6" fill="#0d1117"/>
+        <rect x="640" y="440" width="192" height="80" rx="6" fill="rgba(230,237,243,0.05)" stroke="#9da7b3" stroke-width="1"/>
+        <rect x="648" y="448" width="22" height="12" rx="2" fill="transparent" stroke="rgba(157,167,179,0.50)" stroke-width="0.8"/>
+        <text x="659.0" y="457" fill="#9da7b3" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DB</text>
+        <text x="736" y="476" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">PostgreSQL</text>
+        <text x="736" y="492" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">orders · items · box inventory</text>
+        <text x="736" y="506" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">users · saved solutions</text>
+      <rect x="176" y="440" width="184" height="72" rx="6" fill="#0d1117"/>
+        <rect x="176" y="440" width="184" height="72" rx="6" fill="rgba(230,237,243,0.03)" stroke="rgba(230,237,243,0.30)" stroke-width="1"/>
+        <rect x="184" y="448" width="27" height="12" rx="2" fill="transparent" stroke="rgba(230,237,243,0.22)" stroke-width="0.8"/>
+        <text x="197.5" y="457" fill="#8b949e" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+        <text x="268" y="480" fill="#e6edf3" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">FitVisualiser</text>
+        <text x="268" y="496" fill="#9da7b3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Three.js · separate app</text>
+
+      <!-- Legend strip -->
+      <line x1="40" y1="544" x2="856" y2="544" stroke="rgba(230,237,243,0.10)" stroke-width="0.8"/>
+      <text x="40" y="560" fill="#9da7b3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+      <rect x="40" y="572" width="14" height="10" rx="2" fill="rgba(88,166,255,0.10)" stroke="#58a6ff" stroke-width="1"/>
+      <text x="60" y="580" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif">FitPortal</text>
+      <rect x="128" y="572" width="14" height="10" rx="2" fill="#161b22" stroke="#e6edf3" stroke-width="1"/>
+      <text x="148" y="580" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Backend</text>
+      <rect x="208" y="572" width="14" height="10" rx="2" fill="rgba(230,237,243,0.05)" stroke="#9da7b3" stroke-width="1"/>
+      <text x="228" y="580" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Database</text>
+      <rect x="296" y="572" width="14" height="10" rx="2" fill="rgba(230,237,243,0.03)" stroke="rgba(230,237,243,0.30)" stroke-width="1"/>
+      <text x="316" y="580" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif">External</text>
+      <line x1="392" y1="577" x2="420" y2="577" stroke="#79c0ff" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+      <text x="428" y="580" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif">HTTP request</text>
+      <line x1="528" y1="577" x2="556" y2="577" stroke="#9da7b3" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="564" y="580" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Internal call / handoff</text>
+      <line x1="700" y1="577" x2="728" y2="577" stroke="#9da7b3" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <text x="736" y="580" fill="#9da7b3" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Verify / return</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>
